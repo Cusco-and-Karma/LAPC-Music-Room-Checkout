@@ -360,6 +360,7 @@ function rebuildRooms(){
   wr.innerHTML = ROOMS.map(r => `<option>${esc(r)}</option>`).join("");
   state.weekRoom = ROOMS.includes(keep) ? keep : ROOMS[0];
   wr.value = state.weekRoom;
+  paintLegend();   // the footer counts rooms, so it is stale until this runs
 }
 
 /* ---------- occurrence model ----------
