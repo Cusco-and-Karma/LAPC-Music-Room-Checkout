@@ -284,6 +284,7 @@ input[type=text]::placeholder{color:var(--ink-3)}
   <div class="spacer"></div>
   <input type="text" class="search" id="search" placeholder="Filter room, class, person" aria-label="Filter">
   <button class="btn" id="foldBtn" title="Show or hide practice rooms 3414-A through 3414-I"></button>
+  <button class="btn hidden" id="roomsBtn">Rooms</button>
   <button class="btn" id="openChanges">Changes <span id="chgCount" class="mono"></span></button>
   <button class="btn" id="exportBtn">Export</button>
   <button class="btn primary hidden" id="newBtn">+ Check out rooms</button>
@@ -309,7 +310,13 @@ input[type=text]::placeholder{color:var(--ink-3)}
 
 <script>
 const DATA = {"rooms":["3400 (Choir)","3401 (Band)","3414-A (Practice)","3414-B (Practice)","3414-C (Practice)","3414-D (Practice)","3414-E (Practice)","3414-F (Practice)","3414-G (Practice)","3414-H (Practice)","3414-I (Perc)","3414-J (Lance)","3414-K (Perc)","3414-L (Michelle)","3414-M (Commercial)","3422","3423","3424 (Piano lab)"],"baseline":[{"id":"mon-3400-choir-0935","dow":1,"room":"3400 (Choir)","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 412-414","title":"Elementary Voice","instructor":"Garineh Avakian"},{"id":"mon-3400-choir-1245","dow":1,"room":"3400 (Choir)","kind":"class","start":"12:45","end":"14:10","code":"MUSIC 299, 501","title":"Music Honors / College Choir","instructor":"Garineh Avakian"},{"id":"mon-3400-choir-1420","dow":1,"room":"3400 (Choir)","kind":"class","start":"14:20","end":"16:25","code":"MUSIC 265","title":"Recording Arts Workshop","instructor":"Mark Cross"},{"id":"mon-3401-band-1545","dow":1,"room":"3401 (Band)","kind":"amp","start":"15:45","end":"17:15","code":"","title":"AMP Lessons","instructor":"Jason Stoll"},{"id":"mon-3401-band-1815","dow":1,"room":"3401 (Band)","kind":"office","start":"18:15","end":"18:50","code":"","title":"Office Hours","instructor":"Elliot Deutsch"},{"id":"mon-3401-band-1850","dow":1,"room":"3401 (Band)","kind":"class","start":"18:50","end":"22:00","code":"MUSIC 781","title":"Studio Jazz Band","instructor":"Elliot Deutsch"},{"id":"mon-3414-j-lance-0800","dow":1,"room":"3414-J (Lance)","kind":"accomp","start":"08:00","end":"09:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"mon-3414-j-lance-1100","dow":1,"room":"3414-J (Lance)","kind":"accomp","start":"11:00","end":"11:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"mon-3414-j-lance-1130","dow":1,"room":"3414-J (Lance)","kind":"accomp","start":"11:30","end":"12:30","code":"","title":"Lance Lunch / Space Unavailable","instructor":""},{"id":"mon-3414-j-lance-1400","dow":1,"room":"3414-J (Lance)","kind":"accomp","start":"14:00","end":"16:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"mon-3414-k-perc-1615","dow":1,"room":"3414-K (Perc)","kind":"amp","start":"16:15","end":"17:45","code":"","title":"AMP Lessons","instructor":"Carson Schafer"},{"id":"mon-3414-l-michelle-1100","dow":1,"room":"3414-L (Michelle)","kind":"accomp","start":"11:00","end":"12:00","code":"","title":"Michelle Accomp. Hours","instructor":"Michelle"},{"id":"mon-3414-l-michelle-1345","dow":1,"room":"3414-L (Michelle)","kind":"accomp","start":"13:45","end":"14:30","code":"","title":"Michelle Accomp. Hours","instructor":"Michelle"},{"id":"mon-3414-m-commercial-1110","dow":1,"room":"3414-M (Commercial)","kind":"class","start":"11:10","end":"13:15","code":"MUSIC 161","title":"Introduction to Music Technology","instructor":"Mark Cross"},{"id":"mon-3422-0800","dow":1,"room":"3422","kind":"class","start":"08:00","end":"09:25","code":"MUSIC 217-1","title":"Musicianship","instructor":"Charlotte Wilkins"},{"id":"mon-3422-0935","dow":1,"room":"3422","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 217-2","title":"Musicianship","instructor":"Charlotte Wilkins"},{"id":"mon-3422-1245","dow":1,"room":"3422","kind":"class","start":"12:45","end":"14:10","code":"MUSIC 101","title":"Fundamentals Of Music","instructor":"Jon Titmus"},{"id":"mon-3422-1515","dow":1,"room":"3422","kind":"amp","start":"15:15","end":"16:45","code":"","title":"AMP Lessons","instructor":"Michael Gutierrez"},{"id":"mon-3423-1110","dow":1,"room":"3423","kind":"class","start":"11:10","end":"12:35","code":"MUSIC 216-1","title":"Music Theory","instructor":"Wendy Mazon"},{"id":"mon-3423-1245","dow":1,"room":"3423","kind":"amp","start":"12:45","end":"17:15","code":"","title":"AMP Lessons","instructor":"Justine Boonstra"},{"id":"mon-3424-piano-lab-1720","dow":1,"room":"3424 (Piano lab)","kind":"class","start":"17:20","end":"17:50","code":"MUSIC 321-324","title":"Elementary Piano","instructor":"Jason Stoll"},{"id":"mon-3424-piano-lab-1750","dow":1,"room":"3424 (Piano lab)","kind":"class","start":"17:50","end":"18:45","code":"MUSIC 321-324","title":"Elementary Piano","instructor":"Jason Stoll"},{"id":"tue-3400-choir-0935","dow":2,"room":"3400 (Choir)","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 411","title":"Elementary Voice","instructor":"Garineh Avakian"},{"id":"tue-3400-choir-1420","dow":2,"room":"3400 (Choir)","kind":"class","start":"14:20","end":"15:45","code":"MUSIC 250-1, 250-2, 250-3, 250-4, 299","title":"Music Performance Workshop / Music Honors","instructor":"Cameron Wilkins"},{"id":"tue-3400-choir-1550","dow":2,"room":"3400 (Choir)","kind":"office","start":"15:50","end":"16:25","code":"","title":"Office Hours","instructor":"Kevin Good"},{"id":"tue-3401-band-0935","dow":2,"room":"3401 (Band)","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 299, 650-654","title":"Beginning Guitar / Classical Guitar / Music Honors","instructor":"Bryan Fasola"},{"id":"tue-3401-band-1100","dow":2,"room":"3401 (Band)","kind":"encore","start":"11:00","end":"13:00","code":"Encore","title":"Musical Theatre Techniques","instructor":"Tortell"},{"id":"tue-3401-band-1420","dow":2,"room":"3401 (Band)","kind":"class","start":"14:20","end":"16:25","code":"MUSIC 265","title":"Recording Arts Workshop","instructor":"Mark Cross"},{"id":"tue-3414-a-practice-0945","dow":2,"room":"3414-A (Practice)","kind":"amp","start":"09:45","end":"12:30","code":"","title":"AMP Lessons","instructor":"Justine Boonstra"},{"id":"tue-3414-j-lance-0830","dow":2,"room":"3414-J (Lance)","kind":"accomp","start":"08:30","end":"09:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"tue-3414-j-lance-1100","dow":2,"room":"3414-J (Lance)","kind":"accomp","start":"11:00","end":"12:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"tue-3414-j-lance-1330","dow":2,"room":"3414-J (Lance)","kind":"accomp","start":"13:30","end":"14:00","code":"","title":"Lance Lunch / Space Unavailable / Lance Accomp. Hours","instructor":""},{"id":"tue-3414-k-perc-1615","dow":2,"room":"3414-K (Perc)","kind":"amp","start":"16:15","end":"17:45","code":"","title":"AMP Lessons","instructor":"Kevin Good"},{"id":"tue-3414-l-michelle-1000","dow":2,"room":"3414-L (Michelle)","kind":"accomp","start":"10:00","end":"11:15","code":"","title":"Michelle Accomp. Hours","instructor":"Michelle"},{"id":"tue-3414-l-michelle-1145","dow":2,"room":"3414-L (Michelle)","kind":"amp","start":"11:45","end":"13:15","code":"","title":"AMP Lessons","instructor":"Holly Palmer"},{"id":"tue-3414-l-michelle-1315","dow":2,"room":"3414-L (Michelle)","kind":"accomp","start":"13:15","end":"13:30","code":"","title":"Michelle Accomp. Hours","instructor":"Michelle"},{"id":"tue-3414-m-commercial-1110","dow":2,"room":"3414-M (Commercial)","kind":"class","start":"11:10","end":"13:15","code":"MUSIC 165","title":"Introduction To Recording Arts","instructor":"Mark Cross"},{"id":"tue-3422-0800","dow":2,"room":"3422","kind":"class","start":"08:00","end":"09:25","code":"MUSIC 217-3","title":"Musicianship","instructor":"Charlotte Wilkins"},{"id":"tue-3422-0935","dow":2,"room":"3422","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 216-2","title":"Music Theory","instructor":"Anthony Wardzinski"},{"id":"tue-3422-1110","dow":2,"room":"3422","kind":"class","start":"11:10","end":"12:35","code":"MUSIC 216-3","title":"Music Theory","instructor":"Anthony Wardzinski"},{"id":"tue-3423-0800","dow":2,"room":"3423","kind":"class","start":"08:00","end":"09:25","code":"MUSIC 111","title":"Music Appreciation","instructor":"LAPC STAFF"},{"id":"tue-3423-1110","dow":2,"room":"3423","kind":"class","start":"11:10","end":"12:35","code":"MUSIC 101","title":"Fundamentals Of Music","instructor":"Leila Nunez-Fredell"},{"id":"tue-3424-piano-lab-0800","dow":2,"room":"3424 (Piano lab)","kind":"class","start":"08:00","end":"09:25","code":"MUSIC 299, 322-324, 341","title":"Elementary Piano / Intermediate Piano / Music Honors","instructor":"Alexander Zhu"},{"id":"tue-3424-piano-lab-0935","dow":2,"room":"3424 (Piano lab)","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 321","title":"Elementary Piano","instructor":"Alexander Zhu"},{"id":"wed-3400-choir-0935","dow":3,"room":"3400 (Choir)","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 412-414","title":"Elementary Voice","instructor":"Garineh Avakian"},{"id":"wed-3400-choir-1100","dow":3,"room":"3400 (Choir)","kind":"amp","start":"11:00","end":"12:30","code":"","title":"AMP Lessons","instructor":"April Amante"},{"id":"wed-3400-choir-1245","dow":3,"room":"3400 (Choir)","kind":"class","start":"12:45","end":"14:10","code":"MUSIC 299, 501","title":"Music Honors / College Choir","instructor":"Garineh Avakian"},{"id":"wed-3400-choir-1415","dow":3,"room":"3400 (Choir)","kind":"amp","start":"14:15","end":"16:45","code":"","title":"AMP Lessons","instructor":"April Amante"},{"id":"wed-3401-band-0945","dow":3,"room":"3401 (Band)","kind":"amp","start":"09:45","end":"14:45","code":"","title":"AMP Lessons","instructor":"Jeewon Lee"},{"id":"wed-3401-band-1515","dow":3,"room":"3401 (Band)","kind":"amp","start":"15:15","end":"16:45","code":"","title":"AMP Lessons","instructor":"Jason Stoll"},{"id":"wed-3401-band-1815","dow":3,"room":"3401 (Band)","kind":"office","start":"18:15","end":"18:50","code":"","title":"Office Hours","instructor":"Lipra Blagomira"},{"id":"wed-3401-band-1850","dow":3,"room":"3401 (Band)","kind":"class","start":"18:50","end":"22:00","code":"MUSIC 705","title":"Chamber Music / Blagomira Lipari","instructor":"Wilkins Cameron"},{"id":"wed-3414-a-practice-1245","dow":3,"room":"3414-A (Practice)","kind":"amp","start":"12:45","end":"15:15","code":"","title":"AMP Lessons","instructor":"Shai Golan"},{"id":"wed-3414-j-lance-0800","dow":3,"room":"3414-J (Lance)","kind":"accomp","start":"08:00","end":"09:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"wed-3414-j-lance-1100","dow":3,"room":"3414-J (Lance)","kind":"accomp","start":"11:00","end":"11:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"wed-3414-j-lance-1130","dow":3,"room":"3414-J (Lance)","kind":"accomp","start":"11:30","end":"12:30","code":"","title":"Lance Lunch / Space Unavailable","instructor":""},{"id":"wed-3414-j-lance-1230","dow":3,"room":"3414-J (Lance)","kind":"amp","start":"12:30","end":"13:45","code":"","title":"AMP Lessons","instructor":"April Amante"},{"id":"wed-3414-j-lance-1400","dow":3,"room":"3414-J (Lance)","kind":"accomp","start":"14:00","end":"16:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"wed-3414-k-perc-1300","dow":3,"room":"3414-K (Perc)","kind":"amp","start":"13:00","end":"15:45","code":"","title":"AMP Lessons","instructor":"Doug Mattingly"},{"id":"wed-3414-l-michelle-1100","dow":3,"room":"3414-L (Michelle)","kind":"accomp","start":"11:00","end":"12:00","code":"","title":"Michelle Accomp. Hours","instructor":"Michelle"},{"id":"wed-3414-l-michelle-1345","dow":3,"room":"3414-L (Michelle)","kind":"amp","start":"13:45","end":"17:15","code":"","title":"AMP Lessons","instructor":"Holly Palmer"},{"id":"wed-3414-m-commercial-1110","dow":3,"room":"3414-M (Commercial)","kind":"class","start":"11:10","end":"13:15","code":"MUSIC 161","title":"Introduction to Music Technology","instructor":"Mark Cross"},{"id":"wed-3414-m-commercial-1420","dow":3,"room":"3414-M (Commercial)","kind":"class","start":"14:20","end":"16:25","code":"MUSIC 265","title":"Recording Arts Workshop","instructor":"Mark Cross"},{"id":"wed-3422-0800","dow":3,"room":"3422","kind":"class","start":"08:00","end":"09:25","code":"MUSIC 217-1","title":"Musicianship","instructor":"Charlotte Wilkins"},{"id":"wed-3422-0935","dow":3,"room":"3422","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 217-2","title":"Musicianship","instructor":"Charlotte Wilkins"},{"id":"wed-3422-1245","dow":3,"room":"3422","kind":"class","start":"12:45","end":"14:10","code":"MUSIC 101","title":"Fundamentals Of Music","instructor":"Jon Titmus"},{"id":"wed-3422-1410","dow":3,"room":"3422","kind":"office","start":"14:10","end":"15:45","code":"","title":"Office Hours","instructor":"Jon Titmus"},{"id":"wed-3422-1545","dow":3,"room":"3422","kind":"amp","start":"15:45","end":"17:15","code":"","title":"AMP Lessons","instructor":"Shai Golan"},{"id":"wed-3423-1110","dow":3,"room":"3423","kind":"class","start":"11:10","end":"12:35","code":"MUSIC 216-1","title":"Music Theory","instructor":"Wendy Mazon"},{"id":"wed-3423-1400","dow":3,"room":"3423","kind":"encore","start":"14:00","end":"16:00","code":"Encore","title":"Vocal Class for Beginners","instructor":"Tortell"},{"id":"wed-3424-piano-lab-1015","dow":3,"room":"3424 (Piano lab)","kind":"amp","start":"10:15","end":"12:15","code":"","title":"AMP Lessons","instructor":"Leila Nunez-Fredell"},{"id":"wed-3424-piano-lab-1720","dow":3,"room":"3424 (Piano lab)","kind":"class","start":"17:20","end":"18:45","code":"MUSIC 321-324","title":"Elementary Piano","instructor":"Jason Stoll"},{"id":"thu-3400-choir-0935","dow":4,"room":"3400 (Choir)","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 411","title":"Elementary Voice","instructor":"Garineh Avakian"},{"id":"thu-3400-choir-1110","dow":4,"room":"3400 (Choir)","kind":"class","start":"11:10","end":"13:15","code":"MUSIC 165","title":"Introduction To Recording Arts","instructor":"Mark Cross"},{"id":"thu-3400-choir-1420","dow":4,"room":"3400 (Choir)","kind":"class","start":"14:20","end":"15:45","code":"MUSIC 250, 299","title":"Music Performance Workshop / Music Honors","instructor":"Cameron Wilkins"},{"id":"thu-3400-choir-1545","dow":4,"room":"3400 (Choir)","kind":"amp","start":"15:45","end":"17:15","code":"","title":"AMP Lessons","instructor":"Cameron Wilkins"},{"id":"thu-3401-band-0935","dow":4,"room":"3401 (Band)","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 299, 650-654","title":"Beginning Guitar / Classical Guitar / Music Honors","instructor":"Bryan Fasola"},{"id":"thu-3401-band-1145","dow":4,"room":"3401 (Band)","kind":"amp","start":"11:45","end":"13:15","code":"","title":"AMP Lessons","instructor":"Joseph Dhanens"},{"id":"thu-3401-band-1345","dow":4,"room":"3401 (Band)","kind":"encore","start":"13:45","end":"15:45","code":"ENCORE","title":"Encore Singers","instructor":"Domine"},{"id":"thu-3401-band-1600","dow":4,"room":"3401 (Band)","kind":"office","start":"16:00","end":"18:35","code":"","title":"Office Hours","instructor":"Wendy Mazon"},{"id":"thu-3401-band-1850","dow":4,"room":"3401 (Band)","kind":"class","start":"18:50","end":"22:00","code":"MUSIC 299, 745, 751, 755, 765","title":"Music Honors / Symphonic Band / Wind Ensemble / Brass Ensemble / Percussion Ensemble","instructor":"Wendy Mazon"},{"id":"thu-3414-a-practice-1045","dow":4,"room":"3414-A (Practice)","kind":"amp","start":"10:45","end":"13:15","code":"","title":"AMP Lessons","instructor":"April Amante"},{"id":"thu-3414-j-lance-0830","dow":4,"room":"3414-J (Lance)","kind":"accomp","start":"08:30","end":"09:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"thu-3414-j-lance-1100","dow":4,"room":"3414-J (Lance)","kind":"accomp","start":"11:00","end":"12:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"thu-3414-j-lance-1330","dow":4,"room":"3414-J (Lance)","kind":"accomp","start":"13:30","end":"14:00","code":"","title":"Lance Lunch / Space Unavailable / Lance Accomp. Hours","instructor":""},{"id":"thu-3414-k-perc-0945","dow":4,"room":"3414-K (Perc)","kind":"amp","start":"09:45","end":"13:15","code":"","title":"AMP Lessons","instructor":"Andy Brems"},{"id":"thu-3414-l-michelle-0945","dow":4,"room":"3414-L (Michelle)","kind":"amp","start":"09:45","end":"11:15","code":"","title":"AMP Lessons","instructor":"Cameron Wilkins"},{"id":"thu-3414-l-michelle-1200","dow":4,"room":"3414-L (Michelle)","kind":"accomp","start":"12:00","end":"14:00","code":"","title":"Michelle Accomp. Hours","instructor":"Michelle"},{"id":"thu-3414-m-commercial-1420","dow":4,"room":"3414-M (Commercial)","kind":"class","start":"14:20","end":"16:25","code":"MUSIC 265","title":"Recording Arts Workshop","instructor":"Mark Cross"},{"id":"thu-3422-0800","dow":4,"room":"3422","kind":"class","start":"08:00","end":"09:25","code":"MUSIC 217","title":"Musicianship","instructor":"Charlotte Wilkins"},{"id":"thu-3422-0935","dow":4,"room":"3422","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 216-2","title":"Music Theory","instructor":"Anthony Wardzinski"},{"id":"thu-3422-1110","dow":4,"room":"3422","kind":"class","start":"11:10","end":"12:35","code":"MUSIC 216-3","title":"Music Theory","instructor":"Anthony Wardzinski"},{"id":"thu-3423-0800","dow":4,"room":"3423","kind":"class","start":"08:00","end":"09:25","code":"MUSIC 111","title":"Music Appreciation","instructor":"LAPC STAFF"},{"id":"thu-3423-1110","dow":4,"room":"3423","kind":"class","start":"11:10","end":"12:35","code":"MUSIC 101","title":"Fundamentals Of Music","instructor":"Leila Nunez-Fredell"},{"id":"thu-3423-1315","dow":4,"room":"3423","kind":"amp","start":"13:15","end":"19:15","code":"","title":"AMP Lessons","instructor":"Joseph Dhanens"},{"id":"thu-3424-piano-lab-0800","dow":4,"room":"3424 (Piano lab)","kind":"class","start":"08:00","end":"09:25","code":"MUSIC 299, 322-324, 341","title":"Elementary Piano / Intermediate Piano / Music Honors","instructor":"Alexander Zhu"},{"id":"thu-3424-piano-lab-0935","dow":4,"room":"3424 (Piano lab)","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 321","title":"Elementary Piano","instructor":"Alexander Zhu"},{"id":"thu-3424-piano-lab-1145","dow":4,"room":"3424 (Piano lab)","kind":"amp","start":"11:45","end":"13:15","code":"","title":"AMP Lessons","instructor":"Cameron Wilkins"},{"id":"fri-3400-choir-0900","dow":5,"room":"3400 (Choir)","kind":"class","start":"09:00","end":"12:10","code":"MUSIC 250","title":"Music Performance Workshop","instructor":"Garineh Avakian"},{"id":"fri-3401-band-1045","dow":5,"room":"3401 (Band)","kind":"amp","start":"10:45","end":"12:15","code":"","title":"AMP Lessons","instructor":"Mishkar Nunez-Fredell"},{"id":"fri-3414-j-lance-0800","dow":5,"room":"3414-J (Lance)","kind":"accomp","start":"08:00","end":"09:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"fri-3422-0845","dow":5,"room":"3422","kind":"amp","start":"08:45","end":"10:45","code":"","title":"AMP Lessons","instructor":"Byron Sleugh"},{"id":"fri-3422-1245","dow":5,"room":"3422","kind":"amp","start":"12:45","end":"14:15","code":"","title":"AMP Lessons","instructor":"Michael Matsuno"}]};
-const ROOMS = DATA.rooms, BASE = DATA.baseline;
+const BASE = DATA.baseline;
+const MASTER_ROOMS = DATA.rooms.slice();
+let ROOMS = MASTER_ROOMS.slice();
+// "3414-M" must sort before "3416-B", so pad digit runs before comparing.
+const natKey = x => String(x).replace(/(\d+)/g, m => m.padStart(6, "0"));
+const byRoom = (a, b) => natKey(a).localeCompare(natKey(b));
+const roomSlug = n => String(n).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const TERM = (window.ROOM_CHECKOUT_CONFIG && window.ROOM_CHECKOUT_CONFIG.term)
   || {name:"Fall 2026", start:"2026-08-31", end:"2026-12-20"};
 const DAYNAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
@@ -333,17 +340,27 @@ const dow = s => parseISO(s).getDay();
 const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 /* ---------- state ---------- */
-const PRACTICE = ROOMS.filter(r => /^3414-[A-I]\b/.test(r));
+const PRACTICE = MASTER_ROOMS.filter(r => /^3414-[A-I]\b/.test(r));
 const isPractice = r => PRACTICE.includes(r);
 const roomTag = r => (r.match(/^3414-([A-I])\b/)||[,""])[1];
 
 const state = {
   date: iso(new Date()), view:"day", weekRoom: ROOMS[0], q:"",
-  collapsePractice: true, kinds: new Set(),
+  collapsePractice: true, kinds: new Set(), rooms: new Map(),
   canEdit:false, db:null, downloads:null,
   exceptions:new Map(), reservations:new Map(), sel:null
 };
 const exKey = (baseId,date) => baseId.replace(/[^A-Za-z0-9_.~:@+-]/g,"_")+"__"+date;
+
+function rebuildRooms(){
+  const extra = [...state.rooms.values()].map(r => r.name).filter(Boolean);
+  ROOMS = [...new Set(MASTER_ROOMS.concat(extra))].sort(byRoom);
+  const wr = document.getElementById("weekRoom");
+  const keep = state.weekRoom;
+  wr.innerHTML = ROOMS.map(r => `<option>${esc(r)}</option>`).join("");
+  state.weekRoom = ROOMS.includes(keep) ? keep : ROOMS[0];
+  wr.value = state.weekRoom;
+}
 
 /* ---------- occurrence model ----------
    A day's picture = weekly baseline from the master schedule
@@ -746,6 +763,68 @@ function findConflicts(r){
   }
   return out;
 }
+function roomUsage(name){
+  let n = 0;
+  for (const r of state.reservations.values())
+    if (!r.cancelled && (r.rooms||[]).includes(name)) n++;
+  return n;
+}
+
+function openRooms(){
+  const custom = [...state.rooms.entries()].sort((a,b)=>byRoom(a[1].name,b[1].name));
+  const body = `
+    <div class="sec-t">Add a room</div>
+    <div class="row">
+      <div class="field"><label for="rNum">Room number</label>
+        <input type="text" id="rNum" placeholder="3416-B" autocomplete="off"></div>
+      <div class="field"><label for="rLabel">Label (optional)</label>
+        <input type="text" id="rLabel" placeholder="Adjunct Office" autocomplete="off"></div>
+    </div>
+    <p class="si-err" id="rErr" hidden></p>
+    <div class="sec-t">Added rooms</div>
+    ${custom.length ? `<div class="list">${custom.map(([id,r])=>{
+      const used = roomUsage(r.name);
+      return `<div class="item" style="cursor:default">
+        <span class="bar-c" style="background:var(--accent)"></span>
+        <span class="m"><b>${esc(r.name)}</b>
+        <span>${used ? used+" checkout"+(used>1?"s":"") : "No checkouts"}</span></span>
+        <button class="btn ghost" data-del="${esc(id)}" style="font-size:12px;padding:3px 8px;color:var(--accent)">Remove</button>
+      </div>`;}).join("")}</div>`
+      : `<div class="empty">No rooms added yet. The ${MASTER_ROOMS.length} rooms below come from the master schedule.</div>`}
+    <div class="sec-t">From the master schedule</div>
+    <div class="note">${MASTER_ROOMS.map(r=>esc(r.split(" ")[0])).join(" &middot; ")}
+      <div style="margin-top:6px">These come from the Class Schedule spreadsheet and change when a
+      new term is imported, so they can't be removed here.</div></div>`;
+  openDrawer("Rooms", `${ROOMS.length} rooms in the grid`, body,
+    `<button class="btn primary" id="rAdd">Add room</button><button class="btn ghost" id="rClose">Done</button>`);
+
+  const $ = id => document.getElementById(id);
+  const err = m => { const e = $("rErr"); e.textContent = m; e.hidden = false; };
+  $("rClose").onclick = closeDrawer;
+  $("rAdd").onclick = async ()=>{
+    const num = $("rNum").value.trim(), label = $("rLabel").value.trim();
+    if (!num) return err("Enter a room number.");
+    const name = label ? `${num} (${label})` : num;
+    if (ROOMS.includes(name)) return err("That room is already in the grid.");
+    if (ROOMS.some(r => r.split(" ")[0] === num))
+      return err(`Room ${num} is already in the grid under a different label.`);
+    const id = roomSlug(name);
+    if (!id) return err("That room number has no letters or digits in it.");
+    try { await state.db.doc("rooms/"+id).set({name, number:num, label, at:Date.now()}); }
+    catch(e){ return err("Could not save. If you were signed in, your session may have expired."); }
+    openRooms();
+  };
+  $("rNum").onkeydown = e => { if (e.key === "Enter") $("rAdd").click(); };
+  $("rLabel").onkeydown = e => { if (e.key === "Enter") $("rAdd").click(); };
+  drawer.querySelectorAll("[data-del]").forEach(b => b.onclick = async ()=>{
+    const id = b.dataset.del, r = state.rooms.get(id);
+    const used = r ? roomUsage(r.name) : 0;
+    if (used && !confirm(`${r.name} has ${used} checkout${used>1?"s":""}. Removing the room leaves them in place but they will stop showing in the grid. Remove it?`)) return;
+    try { await state.db.doc("rooms/"+id).delete(); } catch(e){ return err("Could not remove that room."); }
+    openRooms();
+  });
+}
+
 function openChanges(){
   const rows = [];
   for (const [id,r] of state.reservations) if(!r.cancelled) rows.push({t:"res", id, r, sort:r.dateStart});
@@ -851,6 +930,7 @@ function paintFold(){
 document.getElementById("foldBtn").onclick = ()=>{
   state.collapsePractice = !state.collapsePractice; paintFold(); render();
 };
+document.getElementById("roomsBtn").onclick = openRooms;
 document.getElementById("openChanges").onclick = openChanges;
 document.getElementById("exportBtn").onclick = doExport;
 document.getElementById("newBtn").onclick = ()=>openNew({date:state.date});
@@ -918,6 +998,7 @@ function setSignedIn(on, email){
   role.title = on ? "Signed in as "+email : "Sign in to check out rooms and mark changes.";
   authBtn.textContent = on ? "Sign out" : "Sign in to edit";
   document.getElementById("newBtn").classList.toggle("hidden", !on);
+  document.getElementById("roomsBtn").classList.toggle("hidden", !on);
   render();
 }
 
@@ -973,6 +1054,10 @@ authBtn.onclick = async ()=>{
   setSignedIn(!!session, session && session.user && session.user.email);
   sb.auth.onAuthStateChange((_e, sess)=> setSignedIn(!!sess, sess && sess.user && sess.user.email));
 
+  state.db.collection("rooms").onSnapshot(snap=>{
+    state.rooms = new Map(snap.docs.map(d=>[d.id, d.data()]));
+    rebuildRooms(); render();
+  });
   state.db.collection("exceptions").onSnapshot(snap=>{
     state.exceptions = new Map(snap.docs.map(d=>[d.id, d.data()])); render();
   });

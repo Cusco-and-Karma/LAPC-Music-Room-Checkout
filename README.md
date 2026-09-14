@@ -71,6 +71,13 @@ master intact. *Reset to master* undoes them.
 **Changes panel.** Everything layered on top of the master, in date order. Click
 an entry to jump to it.
 
+**Adding rooms.** *Rooms* lets editors add rooms the spreadsheet doesn't carry —
+adjunct offices, a storage room, anything bookable. Enter a number and an
+optional label ("3416-B" + "Adjunct Office"). Added rooms sort into place by
+number, have no recurring classes, and are available for checkout like any
+other. They live in Supabase rather than in `index.html`, so importing a new
+term never loses them.
+
 ---
 
 ## Each new term

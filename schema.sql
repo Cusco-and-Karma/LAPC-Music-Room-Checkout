@@ -17,10 +17,24 @@ create table if not exists public.reservations (
   updated_at  timestamptz not null default now()
 );
 
+-- Rooms added by staff, on top of the ones compiled in from the spreadsheet.
+-- Kept here rather than in index.html so re-importing a term does not lose them.
+create table if not exists public.rooms (
+  id          text primary key,          -- slug of the room name
+  data        jsonb not null,
+  updated_at  timestamptz not null default now()
+);
+
+alter table public.rooms        enable row level security;
 alter table public.exceptions   enable row level security;
 alter table public.reservations enable row level security;
 
 -- Anyone with the link may read the schedule.
+drop policy if exists read_rooms        on public.rooms;
+create policy read_rooms on public.rooms for select to anon, authenticated using (true);
+drop policy if exists write_rooms on public.rooms;
+create policy write_rooms on public.rooms for all to authenticated using (true) with check (true);
+
 drop policy if exists read_exceptions   on public.exceptions;
 drop policy if exists read_reservations on public.reservations;
 create policy read_exceptions   on public.exceptions   for select to anon, authenticated using (true);
@@ -38,9 +52,10 @@ create policy write_reservations on public.reservations for all to authenticated
 -- only; writing is reserved to signed-in editors at the SQL level as well as
 -- through the policies above.
 grant usage on schema public to anon, authenticated;
-grant select on public.exceptions, public.reservations to anon, authenticated;
-grant insert, update, delete on public.exceptions, public.reservations to authenticated;
+grant select on public.exceptions, public.reservations, public.rooms to anon, authenticated;
+grant insert, update, delete on public.exceptions, public.reservations, public.rooms to authenticated;
 
 -- Push changes to everyone who has the page open.
+alter publication supabase_realtime add table public.rooms;
 alter publication supabase_realtime add table public.exceptions;
 alter publication supabase_realtime add table public.reservations;
