@@ -71,6 +71,13 @@ master intact. *Reset to master* undoes them.
 **Changes panel.** Everything layered on top of the master, in date order. Click
 an entry to jump to it.
 
+**Showing and hiding rooms.** *Rooms* lists every room as a toggle. Switching one
+off drops it from the grid — useful for trimming 21 columns down to the handful
+you care about. This is a per-person view setting saved in your own browser, not
+a change anyone else sees, and it never affects checkouts: a hidden room can
+still be booked from the checkout form. The toolbar button shows how many are
+hidden. Anyone can use this; no sign-in needed.
+
 **Adding rooms.** *Rooms* lets editors add rooms the spreadsheet doesn't carry —
 adjunct offices, a storage room, anything bookable. Enter a number and an
 optional label ("3416-B" + "Adjunct Office"). Added rooms sort into place by

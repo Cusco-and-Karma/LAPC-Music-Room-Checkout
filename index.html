@@ -187,6 +187,9 @@ input[type=text]::placeholder{color:var(--ink-3)}
 .dhead h2{font-family:var(--font-d);font-size:17px;font-weight:800;margin:0;letter-spacing:-.015em;flex:1}
 .dhead .sub{font-size:12px;color:var(--ink-3);margin-top:2px;font-weight:500}
 .dbody{padding:16px 18px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:16px}
+/* the drawer body is a flex column, so its children would otherwise shrink
+   below their content and clip - lists of rooms or changes lose their last row */
+.dbody>*{flex:none}
 .dfoot{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;
   background:var(--surface-2)}
 .field{display:flex;flex-direction:column;gap:5px}
@@ -284,7 +287,7 @@ input[type=text]::placeholder{color:var(--ink-3)}
   <div class="spacer"></div>
   <input type="text" class="search" id="search" placeholder="Filter room, class, person" aria-label="Filter">
   <button class="btn" id="foldBtn" title="Show or hide practice rooms 3414-A through 3414-I"></button>
-  <button class="btn hidden" id="roomsBtn">Rooms</button>
+  <button class="btn" id="roomsBtn">Rooms</button>
   <button class="btn" id="openChanges">Changes <span id="chgCount" class="mono"></span></button>
   <button class="btn" id="exportBtn">Export</button>
   <button class="btn primary hidden" id="newBtn">+ Check out rooms</button>
@@ -346,11 +349,22 @@ const roomTag = r => (r.match(/^3414-([A-I])\b/)||[,""])[1];
 
 const state = {
   date: iso(new Date()), view:"day", weekRoom: ROOMS[0], q:"",
-  collapsePractice: true, kinds: new Set(), rooms: new Map(),
+  collapsePractice: true, kinds: new Set(), rooms: new Map(), hidden: new Set(),
   canEdit:false, db:null, downloads:null,
   exceptions:new Map(), reservations:new Map(), sel:null
 };
 const exKey = (baseId,date) => baseId.replace(/[^A-Za-z0-9_.~:@+-]/g,"_")+"__"+date;
+
+const HIDE_KEY = "roomCheckout.hiddenRooms";
+function loadHidden(){
+  try { const v = localStorage.getItem(HIDE_KEY);
+        if (v) state.hidden = new Set(JSON.parse(v)); } catch(e){}
+}
+function saveHidden(){
+  try { localStorage.setItem(HIDE_KEY, JSON.stringify([...state.hidden])); } catch(e){}
+}
+const isHidden = r => state.hidden.has(r);
+const visibleRooms = () => ROOMS.filter(r => !isHidden(r));
 
 function rebuildRooms(){
   const extra = [...state.rooms.values()].map(r => r.name).filter(Boolean);
@@ -361,6 +375,7 @@ function rebuildRooms(){
   state.weekRoom = ROOMS.includes(keep) ? keep : ROOMS[0];
   wr.value = state.weekRoom;
   paintLegend();   // the footer counts rooms, so it is stale until this runs
+  paintRoomsBtn();
 }
 
 /* ---------- occurrence model ----------
@@ -437,17 +452,20 @@ function render(){
   } else {
     cols = [];
     let folded = false;
+    const shownPractice = PRACTICE.filter(r => !isHidden(r));
     for (const r of ROOMS){
+      if (isHidden(r)) continue;
       if (state.collapsePractice && isPractice(r)){
         if (folded) continue;
         folded = true;
-        cols.push({key:"__practice", label:"3414-A – I", sub:"Practice \u00d7"+PRACTICE.length,
-          date:state.date, rooms:PRACTICE, group:true});
+        cols.push({key:"__practice", label:"3414-A – I", sub:"Practice \u00d7"+shownPractice.length,
+          date:state.date, rooms:shownPractice, group:true});
         continue;
       }
       cols.push({key:r, label:r.split(" ")[0], sub:(r.match(/\((.+)\)/)||[,""])[1],
         date:state.date, rooms:[r]});
     }
+    if (!cols.length) cols = [{key:"__none", label:"", sub:"", date:state.date, rooms:[]}];
   }
 
   const byCol = new Map();
@@ -511,6 +529,14 @@ function render(){
     html += `</div>`;
   }
   grid.innerHTML = html;
+  if (!isWeek && !visibleRooms().length){
+    grid.innerHTML = `<div style="padding:40px 20px;color:var(--ink-3);font-size:13px">
+      Every room is hidden. Open <strong>Rooms</strong> and choose Show all to bring them back.</div>`;
+    grid.style.gridTemplateColumns = "1fr";
+    paintStamp(); paintChangeCount();
+    document.getElementById("termnote").classList.add("hidden");
+    return;
+  }
   const anyInTerm = days.some(inTerm);
   const tn = document.getElementById("termnote");
   tn.classList.toggle("hidden", anyInTerm);
@@ -576,7 +602,8 @@ function paintLegend(){
       ><span class="sw" style="border-color:var(--line-2);background:var(--surface-3);border-left-style:dashed"></span>Cancelled</button>` +
     (state.kinds.size ? `<button class="lg clear" id="clearKinds">Show all</button>` : ``) +
     `<span class="meta">${esc(TERM.name)} &middot; ${esc(shortDate(TERM.start))}&ndash;${esc(shortDate(TERM.end))}
-      &middot; ${BASE.length} weekly blocks &middot; ${ROOMS.length} rooms</span>`;
+      &middot; ${BASE.length} weekly blocks &middot; ${
+        state.hidden.size ? `${visibleRooms().length} of ${ROOMS.length} rooms shown` : `${ROOMS.length} rooms`}</span>`;
   const el = document.getElementById("legend");
   el.innerHTML = html;
   el.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{
@@ -773,17 +800,31 @@ function roomUsage(name){
 
 function openRooms(){
   const custom = [...state.rooms.entries()].sort((a,b)=>byRoom(a[1].name,b[1].name));
+  const customNames = new Set([...state.rooms.values()].map(r=>r.name));
+  const nHidden = ROOMS.filter(isHidden).length;
   const body = `
-    <div class="sec-t">Add a room</div>
-    <div class="row">
+    <div class="sec-t">Shown in the grid</div>
+    <div class="note" style="margin-bottom:2px">Only changes your own view on this
+      device. Everyone else still sees every room.</div>
+    <div class="chips" style="margin-bottom:4px">
+      <button type="button" class="btn ghost" id="vAll" style="font-size:12px;padding:3px 8px">Show all</button>
+      <button type="button" class="btn ghost" id="vNone" style="font-size:12px;padding:3px 8px">Hide all</button>
+      <span style="align-self:center;font-size:11.5px;color:var(--ink-3)">
+        ${ROOMS.length - nHidden} of ${ROOMS.length} shown</span>
+    </div>
+    <div class="chips">${ROOMS.map(r=>
+      `<button type="button" class="chip" data-vis="${esc(r)}" aria-pressed="${!isHidden(r)}"
+        title="${esc(r)}">${esc(r.split(" ")[0])}</button>`).join("")}</div>
+    ${state.canEdit ? `<div class="sec-t">Add a room</div>` : ``}
+    ${state.canEdit ? `<div class="row">
       <div class="field"><label for="rNum">Room number</label>
         <input type="text" id="rNum" placeholder="3416-B" autocomplete="off"></div>
       <div class="field"><label for="rLabel">Label (optional)</label>
         <input type="text" id="rLabel" placeholder="Adjunct Office" autocomplete="off"></div>
     </div>
-    <p class="si-err" id="rErr" hidden></p>
-    <div class="sec-t">Added rooms</div>
-    ${custom.length ? `<div class="list">${custom.map(([id,r])=>{
+    <p class="si-err" id="rErr" hidden></p>` : ``}
+    ${state.canEdit ? `<div class="sec-t">Added rooms</div>` : ``}
+    ${!state.canEdit ? `` : custom.length ? `<div class="list">${custom.map(([id,r])=>{
       const used = roomUsage(r.name);
       return `<div class="item" style="cursor:default">
         <span class="bar-c" style="background:var(--accent)"></span>
@@ -792,16 +833,27 @@ function openRooms(){
         <button class="btn ghost" data-del="${esc(id)}" style="font-size:12px;padding:3px 8px;color:var(--accent)">Remove</button>
       </div>`;}).join("")}</div>`
       : `<div class="empty">No rooms added yet. The ${MASTER_ROOMS.length} rooms below come from the master schedule.</div>`}
-    <div class="sec-t">From the master schedule</div>
+    ${state.canEdit ? `<div class="sec-t">From the master schedule</div>
     <div class="note">${MASTER_ROOMS.map(r=>esc(r.split(" ")[0])).join(" &middot; ")}
       <div style="margin-top:6px">These come from the Class Schedule spreadsheet and change when a
-      new term is imported, so they can't be removed here.</div></div>`;
-  openDrawer("Rooms", `${ROOMS.length} rooms in the grid`, body,
-    `<button class="btn primary" id="rAdd">Add room</button><button class="btn ghost" id="rClose">Done</button>`);
+      new term is imported, so they can't be removed here.</div></div>` : ``}`;
+  openDrawer("Rooms", nHidden ? `${ROOMS.length - nHidden} of ${ROOMS.length} shown` : `${ROOMS.length} rooms`,
+    body, `${state.canEdit ? `<button class="btn primary" id="rAdd">Add room</button>` : ``}<button class="btn ghost" id="rClose">Done</button>`);
+
+  const applyVis = () => { saveHidden(); paintRoomsBtn(); render(); };
+  drawer.querySelectorAll("[data-vis]").forEach(b => b.onclick = ()=>{
+    const r = b.dataset.vis, on = b.getAttribute("aria-pressed") === "true";
+    on ? state.hidden.add(r) : state.hidden.delete(r);
+    b.setAttribute("aria-pressed", String(!on));
+    applyVis(); openRooms();
+  });
+  document.getElementById("vAll").onclick  = ()=>{ state.hidden.clear(); applyVis(); openRooms(); };
+  document.getElementById("vNone").onclick = ()=>{ ROOMS.forEach(r=>state.hidden.add(r)); applyVis(); openRooms(); };
 
   const $ = id => document.getElementById(id);
-  const err = m => { const e = $("rErr"); e.textContent = m; e.hidden = false; };
   $("rClose").onclick = closeDrawer;
+  if (!state.canEdit) return;
+  const err = m => { const e = $("rErr"); e.textContent = m; e.hidden = false; };
   $("rAdd").onclick = async ()=>{
     const num = $("rNum").value.trim(), label = $("rLabel").value.trim();
     if (!num) return err("Enter a room number.");
@@ -922,6 +974,10 @@ document.getElementById("datepick").onchange = e=>{ if(e.target.value){ state.da
 document.getElementById("vDay").onclick  = ()=>{ state.view="day"; syncView(); render(); };
 document.getElementById("vWeek").onclick = ()=>{ state.view="week"; syncView(); render(); };
 document.getElementById("search").oninput = e=>{ state.q = e.target.value.trim(); render(); };
+function paintRoomsBtn(){
+  const n = ROOMS.filter(isHidden).length;
+  document.getElementById("roomsBtn").textContent = n ? `Rooms \u00b7 ${n} hidden` : "Rooms";
+}
 function paintFold(){
   const b = document.getElementById("foldBtn");
   b.textContent = state.collapsePractice ? `Show practice rooms (${PRACTICE.length})` : "Hide practice rooms";
@@ -940,7 +996,7 @@ const wr = document.getElementById("weekRoom");
 wr.innerHTML = ROOMS.map(r=>`<option>${esc(r)}</option>`).join("");
 wr.onchange = e=>{ state.weekRoom = e.target.value; render(); };
 
-paintLegend(); paintFold(); syncView(); render();
+loadHidden(); paintLegend(); paintFold(); paintRoomsBtn(); syncView(); render();
 
 /* ---------- Supabase: storage, live sync, and the shared editor login ----------
    Documents are stored whole in a jsonb column, so the app's own shapes go in
@@ -999,7 +1055,6 @@ function setSignedIn(on, email){
   role.title = on ? "Signed in as "+email : "Sign in to check out rooms and mark changes.";
   authBtn.textContent = on ? "Sign out" : "Sign in to edit";
   document.getElementById("newBtn").classList.toggle("hidden", !on);
-  document.getElementById("roomsBtn").classList.toggle("hidden", !on);
   render();
 }
 
