@@ -6,13 +6,15 @@ time grid down column A starting at 8:00 in row 4. A booking is a run of
 same-colored cells in a room column; the fill color says what kind of
 booking it is, and the text carries its real start and end times.
 
-    python3 import_schedule.py "2027 - SPRING - LAPC-MUSIC - Class Schedule - Master.xlsx"
+    python3 import_schedule.py "2027 - SPRING - LAPC-MUSIC - Class Schedule - Master.xlsx" \
+        --term "Spring 2027" --start 2027-02-08 --end 2027-06-07
 
-Rewrites the DATA constant in index.html in place. Commit and push to
-deploy. Checkouts and per-date changes live in Supabase, not in this file,
-so re-seeding leaves them untouched.
+Rewrites the DATA constant in index.html, and the term in config.js when
+--term/--start/--end are given. Commit and push to deploy. Checkouts and
+per-date changes live in Supabase, not in these files, so re-seeding
+leaves them untouched.
 """
-import json, re, sys, unicodedata, pathlib
+import argparse, json, re, sys, unicodedata, pathlib
 import openpyxl
 
 STRIPE = {"FFF2F2F2", "FFD9D9D9", "00000000", None}   # empty alternating rows
@@ -146,10 +148,38 @@ def shape(rooms_order, raw):
     return {"rooms": rooms_order, "baseline": out}
 
 
+DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+def update_term(name, start, end):
+    """Point config.js at the new term. All three values are required together."""
+    cfg = pathlib.Path(__file__).with_name("config.js")
+    text = cfg.read_text()
+    new = f'term: {{name: "{name}", start: "{start}", end: "{end}"}}'
+    text, n = re.subn(r"term:\s*\{[^}]*\}", lambda _: new, text, count=1)
+    if not n:
+        sys.exit("Could not find the term entry in config.js.")
+    cfg.write_text(text)
+    print(f"Term set to {name} ({start} to {end}).")
+
+
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        sys.exit(__doc__)
-    src = sys.argv[1]
+    ap = argparse.ArgumentParser(description="Re-seed room-checkout from a Class Schedule workbook.")
+    ap.add_argument("workbook", help="path to the .xlsx master schedule")
+    ap.add_argument("--term",  help='term name, e.g. "Spring 2027"')
+    ap.add_argument("--start", help="first day of instruction, YYYY-MM-DD")
+    ap.add_argument("--end",   help="last day of instruction, YYYY-MM-DD")
+    args = ap.parse_args()
+
+    term_args = [args.term, args.start, args.end]
+    if any(term_args) and not all(term_args):
+        sys.exit("Pass --term, --start and --end together, or none of them.")
+    for d in (args.start, args.end):
+        if d and not DATE_RE.match(d):
+            sys.exit(f"Dates must look like 2027-02-08, not {d!r}.")
+    if args.start and args.end and args.end < args.start:
+        sys.exit("The end date is before the start date.")
+
+    src = args.workbook
     data = shape(*extract(src))
     page = pathlib.Path(__file__).with_name("index.html")
     html = page.read_text()
@@ -159,4 +189,9 @@ if __name__ == "__main__":
         sys.exit("Could not find the DATA constant in index.html.")
     page.write_text(html)
     print(f"{len(data['baseline'])} blocks across {len(data['rooms'])} rooms from {src}")
-    print(f"Updated {page}. Republish the artifact to push it live.")
+    print(f"Updated {page}.")
+    if args.term:
+        update_term(args.term, args.start, args.end)
+    else:
+        print("Term dates unchanged. Pass --term/--start/--end to move them.")
+    print("Commit and push to deploy.")

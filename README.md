@@ -76,27 +76,32 @@ an entry to jump to it.
 ## Each new term
 
 The weekly schedule is compiled into `index.html`, so a new term means
-re-importing:
+re-importing it along with the term's dates:
 
 ```bash
-python3 import_schedule.py "2027 - SPRING - LAPC-MUSIC - Class Schedule - Master.xlsx"
+python3 import_schedule.py "2027 - SPRING - LAPC-MUSIC - Class Schedule - Master.xlsx" \
+    --term "Spring 2027" --start 2027-02-08 --end 2027-06-07
 ```
 
-It rewrites the `DATA` constant in place. Commit and push to deploy. Checkouts
-and changes live in Supabase, so re-importing leaves them alone.
+`--start` is the first day of instruction and `--end` the last. Outside those
+dates the grid shows no classes, which is intended: the weekly pattern only
+means something during the term. Rooms can still be checked out year-round.
 
-Two things in `index.html` to update by hand for a new term — both near the top
-of the `<script>`:
+Then commit and push:
 
-```js
-const TERM = {name:"Fall 2026", start:"2026-08-31", end:"2026-12-20"};
+```bash
+git add -A && git commit -m "Spring 2027 schedule" && git push
 ```
 
-Outside those dates the grid shows no classes, which is intended: the weekly
-pattern only means something during the term. Rooms can still be checked out
-year-round.
+GitHub Pages redeploys on its own, usually within a minute.
 
-The importer expects the spreadsheet's existing layout — one sheet per weekday,
+Checkouts and per-date changes live in Supabase, not in these files, so
+re-importing never disturbs them.
+
+Leave off `--term/--start/--end` to refresh the schedule without moving the
+term — useful mid-semester when the master spreadsheet changes.
+
+The importer expects the spreadsheet's existing layout: one sheet per weekday,
 rooms across row 3, five-minute rows from 8:00 in row 4, and colour-coded
 blocks. If that layout changes, the importer needs updating too.
 
