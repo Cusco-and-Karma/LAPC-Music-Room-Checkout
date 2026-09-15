@@ -60,6 +60,14 @@ The site appears at `https://<user>.github.io/<repo>/` within a minute or two.
 signed in for weeks. The badge reads *Can edit* and **+ Check out rooms**
 appears.
 
+**Finding a free room.** *Find a room* answers "what's open Thursdays from 2:15
+to 3:30?" — give it a time, the weekdays, and a date range, and it lists the
+rooms free on every matching date, the ones free on only some (with what's in
+the way and how often), and the ones never free. Clicking a result jumps to that
+date so you can see the conflict. Editors get a button straight through to the
+checkout form with the search already filled in. Hidden rooms are still
+searched, since hiding is only about your own view.
+
 **Checking out rooms.** *+ Check out rooms* → pick rooms, a category, a date
 range, a time range, and optionally specific weekdays. The category sets the
 block's colour and lets people filter by it: checkout, event, tutoring, AMP

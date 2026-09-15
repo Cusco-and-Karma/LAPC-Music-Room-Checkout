@@ -18,7 +18,7 @@
   --warn:#9a6407; --warn-bg:#fdf0d8; --ok:#3f6b45;
   --shadow:0 1px 2px rgba(23,26,29,.06),0 8px 24px -12px rgba(23,26,29,.18);
   --shadow-lg:0 2px 8px rgba(23,26,29,.08),0 24px 60px -20px rgba(23,26,29,.32);
-  --r:7px; --gut:64px; --colw:172px; --ppm:1.0;
+  --r:7px; --gut:60px; --colw:172px; --ppm:1.0;
   --font-d:"Bricolage Grotesque","Helvetica Neue",sans-serif;
   --font-b:"Public Sans","Helvetica Neue",Arial,sans-serif;
   --font-m:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -109,14 +109,17 @@ input[type=text]::placeholder{color:var(--ink-3)}
 .hd+.hd{border-left:1px solid var(--line)}
 .hd.today{box-shadow:inset 0 -3px 0 var(--accent)}
 .gut{position:sticky;left:0;z-index:20;background:var(--paper);border-right:1px solid var(--line-2);
-  padding-top:9px}
-.col{position:relative;border-left:1px solid var(--line);background:var(--surface);padding-top:9px}
+  }
+.col{position:relative;border-left:1px solid var(--line);background:var(--surface)}
 .col.free{cursor:copy}
 .col:nth-child(2n){background:var(--surface-2)}
 .tick{position:absolute;left:0;right:0;border-top:1px solid var(--line);pointer-events:none}
 .tick.half{border-top-style:dotted;opacity:.65}
-.tlab{position:absolute;right:8px;font-family:var(--font-m);font-size:11px;color:var(--ink-3);
-  transform:translateY(-6px);font-variant-numeric:tabular-nums}
+.tlab{position:absolute;right:10px;transform:translateY(-50%);display:flex;align-items:baseline;
+  gap:2px;font-family:var(--font-m);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tlab b{font-size:12px;font-weight:600;color:var(--ink-2);letter-spacing:-.02em}
+.tlab i{font-size:9.5px;font-style:normal;font-weight:600;color:var(--ink-3);
+  letter-spacing:.04em;text-transform:uppercase}
 .nowline{position:absolute;left:0;right:0;height:2px;background:var(--accent);z-index:14;pointer-events:none}
 .nowline{opacity:.75}
 .col:first-of-type .nowline::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;
@@ -292,6 +295,7 @@ input[type=text]::placeholder{color:var(--ink-3)}
   <div class="spacer"></div>
   <input type="text" class="search" id="search" placeholder="Filter room, class, person" aria-label="Filter">
   <button class="btn" id="foldBtn" title="Show or hide practice rooms 3414-A through 3414-I"></button>
+  <button class="btn" id="findBtn">Find a room</button>
   <button class="btn" id="roomsBtn">Rooms</button>
   <button class="btn" id="openChanges">Changes <span id="chgCount" class="mono"></span></button>
   <button class="btn" id="exportBtn">Export</button>
@@ -487,7 +491,9 @@ function render(){
   }
   const [lo,hi] = gridBounds(all);
   const ppm = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ppm"))||1;
-  const H = (hi-lo)*ppm;
+  const PAD = 12;                       // breathing room above the first hour
+  const H = (hi-lo)*ppm + PAD*2;
+  const y = min => PAD + (min-lo)*ppm;  // minutes-past-midnight -> pixels
 
   grid.style.gridTemplateColumns = `var(--gut) repeat(${cols.length}, minmax(var(--colw), 1fr))`;
   const todayISO = iso(new Date());
@@ -499,10 +505,10 @@ function render(){
   }
   // time gutter
   html += `<div class="gut" style="height:${H}px">`;
-  for (let m = lo; m <= hi; m += 30){
-    const top = (m-lo)*ppm, hour = m%60===0;
-    html += `<div class="tick${hour?"":" half"}" style="top:${top}px"></div>`;
-    if (hour) html += `<div class="tlab" style="top:${top}px">${fmt12(m).replace(" ","")}</div>`;
+  for (let m = lo; m <= hi; m += 60){
+    const h = Math.floor(m/60), h12 = h%12===0 ? 12 : h%12;
+    html += `<div class="tlab" style="top:${y(m)}px">` +
+            `<b>${h12}</b><i>${h>=12?"pm":"am"}</i></div>`;
   }
   html += `</div>`;
   // columns
@@ -510,15 +516,15 @@ function render(){
     const occ = byCol.get(c.key);
     html += `<div class="col${(state.canEdit && !c.group)?" free":""}" data-col="${esc(c.key)}" data-room="${esc(c.rooms[0])}" data-date="${c.date}" style="height:${H}px">`;
     for (let m = lo; m <= hi; m += 30)
-      html += `<div class="tick${m%60===0?"":" half"}" style="top:${(m-lo)*ppm}px"></div>`;
+      html += `<div class="tick${m%60===0?"":" half"}" style="top:${y(m)}px"></div>`;
     if (c.date === todayISO){
       const now = new Date(), nm = now.getHours()*60+now.getMinutes();
-      if (nm>=lo && nm<=hi) html += `<div class="nowline" style="top:${(nm-lo)*ppm}px"></div>`;
+      if (nm>=lo && nm<=hi) html += `<div class="nowline" style="top:${y(nm)}px"></div>`;
     }
     // lay out overlaps side by side
     const lanes = assignLanes(occ);
     occ.forEach((o,i)=>{
-      const L = lanes[i], top=(o.start-lo)*ppm, h=Math.max(15,(o.end-o.start)*ppm-2);
+      const L = lanes[i], top=y(o.start), h=Math.max(15,(o.end-o.start)*ppm-2);
       const w = 100/L.of, left = L.idx*w;
       const cls = ["ev"]; if(o.cancelled)cls.push("cancelled"); if(o.moved)cls.push("moved");
       if(h<26)cls.push("tiny"); else if(h<40)cls.push("short");
@@ -558,8 +564,8 @@ function render(){
   if (state.canEdit) grid.querySelectorAll(".col").forEach(el=>{
     el.addEventListener("click", e=>{
       if (e.target.closest(".ev")) return;
-      const y = e.clientY - el.getBoundingClientRect().top;
-      const m = Math.max(lo, Math.min(hi-30, Math.round((lo + y/ppm)/15)*15));
+      const yPx = e.clientY - el.getBoundingClientRect().top;
+      const m = Math.max(lo, Math.min(hi-30, Math.round((lo + (yPx-PAD)/ppm)/15)*15));
       openNew({room:el.dataset.room, date:el.dataset.date, start:toHM(m), end:toHM(Math.min(hi,m+60))});
     });
   });
@@ -736,11 +742,11 @@ function openNew(seed){
     <div class="sec-t">Dates</div>
     <div class="row">
       <div class="field"><label for="fFrom">From</label><input type="date" id="fFrom" value="${d0}"></div>
-      <div class="field"><label for="fTo">Through</label><input type="date" id="fTo" value="${d0}"></div>
+      <div class="field"><label for="fTo">Through</label><input type="date" id="fTo" value="${seed.to||d0}"></div>
     </div>
     <div class="field"><label>Only on these days <span style="text-transform:none;letter-spacing:0;font-weight:500">(leave blank for every day in the range)</span></label>
       <div class="chips" id="fDays">${[1,2,3,4,5,6,0].map(i=>
-        `<button type="button" class="chip wd" data-d="${i}" aria-pressed="false">${DAYNAMES[i].slice(0,3)}</button>`).join("")}</div></div>
+        `<button type="button" class="chip wd" data-d="${i}" aria-pressed="${(seed.days||[]).includes(i)}">${DAYNAMES[i].slice(0,3)}</button>`).join("")}</div></div>
     <div class="sec-t">Time</div>
     <div class="row">
       <div class="field"><label for="fStart">Start</label><input type="time" id="fStart" value="${seed.start||"08:00"}"></div>
@@ -810,6 +816,132 @@ function findConflicts(r){
   }
   return out;
 }
+/* ---------- availability search ----------
+   Walks every date matching the chosen weekdays inside the range and asks,
+   per room, whether anything already overlaps the requested window. */
+function findFree(q){
+  const dates = [];
+  let d = q.from, guard = 0;
+  while (d <= q.to && guard++ < 400){
+    if (!q.days.length || q.days.includes(dow(d))) dates.push(d);
+    d = addDays(d, 1);
+  }
+  const s = toMin(q.start), e = toMin(q.end);
+  const rows = ROOMS.map(room => ({room, freeOn:[], busyOn:[], clashes:new Map()}));
+  const byRoom = new Map(rows.map(r => [r.room, r]));
+  for (const date of dates){
+    const hits = new Map();
+    for (const o of occurrencesOn(date)){
+      if (o.cancelled) continue;
+      if (o.start < e && s < o.end){
+        if (!hits.has(o.room)) hits.set(o.room, []);
+        hits.get(o.room).push(o);
+      }
+    }
+    for (const r of rows){
+      const h = hits.get(r.room);
+      if (!h) { r.freeOn.push(date); continue; }
+      r.busyOn.push(date);
+      for (const o of h){
+        const label = o.title + (o.person ? " \u00b7 " + o.person : "");
+        r.clashes.set(label, (r.clashes.get(label)||0) + 1);
+      }
+    }
+  }
+  rows.sort((a,b) => b.freeOn.length - a.freeOn.length || byRoom2(a.room, b.room));
+  return {dates, rows};
+}
+const byRoom2 = (a,b) => byRoom(a,b);
+
+function openFind(seed){
+  seed = seed || {};
+  const today = iso(new Date());
+  const from = seed.from || (today > TERM.start ? today : TERM.start);
+  const body = `
+    <div class="sec-t">Time</div>
+    <div class="row">
+      <div class="field"><label for="qStart">From</label>
+        <input type="time" id="qStart" value="${seed.start||"14:15"}"></div>
+      <div class="field"><label for="qEnd">Until</label>
+        <input type="time" id="qEnd" value="${seed.end||"15:30"}"></div>
+    </div>
+    <div class="sec-t">Days</div>
+    <div class="chips" id="qDays">${[1,2,3,4,5,6,0].map(i=>
+      `<button type="button" class="chip wd" data-d="${i}"
+        aria-pressed="${(seed.days||[dow(state.date)]).includes(i)}">${DAYNAMES[i].slice(0,3)}</button>`).join("")}</div>
+    <div class="row">
+      <div class="field"><label for="qFrom">Between</label><input type="date" id="qFrom" value="${from}"></div>
+      <div class="field"><label for="qTo">and</label><input type="date" id="qTo" value="${seed.to||TERM.end}"></div>
+    </div>
+    <p class="si-err" id="qErr" hidden></p>
+    <div id="qOut"></div>`;
+  openDrawer("Find a room", "Which rooms are free for a time you have in mind",
+    body, `<button class="btn primary" id="qGo">Search</button><button class="btn ghost" id="qClose">Close</button>`);
+
+  const $ = id => document.getElementById(id);
+  $("qClose").onclick = closeDrawer;
+  $("qDays").querySelectorAll(".chip").forEach(b => b.onclick = ()=>{
+    b.setAttribute("aria-pressed", b.getAttribute("aria-pressed")==="true" ? "false" : "true"); run();
+  });
+  ["qStart","qEnd","qFrom","qTo"].forEach(id => $(id).onchange = run);
+  $("qGo").onclick = run;
+
+  function run(){
+    const q = {
+      start: $("qStart").value, end: $("qEnd").value,
+      from: $("qFrom").value, to: $("qTo").value,
+      days: [...$("qDays").querySelectorAll('.chip[aria-pressed="true"]')].map(b=>+b.dataset.d)
+    };
+    const err = $("qErr"); err.hidden = true;
+    if (!q.start || !q.end || !q.from || !q.to) return;
+    if (toMin(q.end) <= toMin(q.start)){ err.textContent = "The end time must be after the start time."; err.hidden = false; $("qOut").innerHTML=""; return; }
+    if (q.to < q.from){ err.textContent = "The end date is before the start date."; err.hidden = false; $("qOut").innerHTML=""; return; }
+    const {dates, rows} = findFree(q);
+    if (!dates.length){ $("qOut").innerHTML = `<div class="empty">No dates match those days in that range.</div>`; return; }
+
+    const n = dates.length;
+    const always = rows.filter(r => r.freeOn.length === n);
+    const some   = rows.filter(r => r.freeOn.length > 0 && r.freeOn.length < n);
+    const never  = rows.filter(r => !r.freeOn.length);
+    const when = `${fmt12(toMin(q.start))} \u2013 ${fmt12(toMin(q.end))}`;
+    const span = n === 1 ? longDate(dates[0])
+      : `${n} date${n>1?"s":""} \u00b7 ${shortDate(dates[0])} \u2013 ${shortDate(dates[n-1])}`;
+    const chips = list => `<div class="chips">${list.map(r=>
+      `<span class="chip" style="cursor:default">${esc(r.room.split(" ")[0])}</span>`).join("")}</div>`;
+
+    $("qOut").innerHTML = `
+      <div class="sec-t">${when} &middot; ${span}</div>
+      ${always.length ? `<div class="note" style="color:var(--ok);border-color:var(--ok)">
+          <strong>${always.length} room${always.length>1?"s":""} free every time</strong></div>${chips(always)}`
+        : `<div class="note warn"><strong>No room is free on all ${n} dates.</strong>
+           ${some.length?"Some are free on part of the range \u2014 see below.":""}</div>`}
+      ${some.length ? `<div class="sec-t">Free on some dates</div><div class="list">${some.map(r=>
+        `<button class="item" data-jump="${r.busyOn[0]}" data-room="${esc(r.room)}">
+          <span class="bar-c" style="background:var(--warn)"></span>
+          <span class="m"><b>${esc(r.room)}</b>
+          <span>free ${r.freeOn.length} of ${n} &middot; busy: ${
+            [...r.clashes.entries()].slice(0,2).map(([t,c])=>esc(t)+(c>1?` \u00d7${c}`:"")).join(", ")}</span></span>
+        </button>`).join("")}</div>` : ``}
+      ${never.length ? `<div class="sec-t">Never free</div><div class="list">${never.map(r=>
+        `<button class="item" data-jump="${r.busyOn[0]}" data-room="${esc(r.room)}">
+          <span class="bar-c" style="background:var(--line-2)"></span>
+          <span class="m"><b>${esc(r.room)}</b>
+          <span>${[...r.clashes.entries()].slice(0,2).map(([t,c])=>esc(t)+(c>1?` \u00d7${c}`:"")).join(", ")}</span></span>
+        </button>`).join("")}</div>` : ``}
+      ${state.canEdit && always.length ? `<div style="margin-top:14px">
+        <button class="btn primary" id="qBook">Check out a free room</button></div>` : ``}`;
+
+    drawer.querySelectorAll("[data-jump]").forEach(b => b.onclick = ()=>{
+      state.date = b.dataset.jump; state.view = "day"; state.hidden.delete(b.dataset.room);
+      saveHidden(); paintRoomsBtn(); syncView(); closeDrawer(); render();
+    });
+    const book = $("qBook");
+    if (book) book.onclick = ()=> openNew({date:q.from, start:q.start, end:q.end,
+      days:q.days, to:q.to, room:always[0].room, freeRooms:always.map(r=>r.room)});
+  }
+  run();
+}
+
 function roomUsage(name){
   let n = 0;
   for (const r of state.reservations.values())
@@ -1006,6 +1138,7 @@ function paintFold(){
 document.getElementById("foldBtn").onclick = ()=>{
   state.collapsePractice = !state.collapsePractice; paintFold(); render();
 };
+document.getElementById("findBtn").onclick = () => openFind();
 document.getElementById("roomsBtn").onclick = openRooms;
 document.getElementById("openChanges").onclick = openChanges;
 document.getElementById("exportBtn").onclick = doExport;
