@@ -48,7 +48,12 @@ key are the real secrets: never put those in this repo.
 
 Push to `main`, then in the repository go to **Settings → Pages** and set the
 source to **Deploy from a branch**, branch `main`, folder `/ (root)`.
-The site appears at `https://<user>.github.io/<repo>/` within a minute or two.
+
+The site is at **https://cusco-and-karma.github.io/LAPC-Music-Room-Checkout/**
+
+Renaming the repository moves that URL, and GitHub does **not** redirect old
+Pages addresses — the previous one returns 404. Re-share the link if you
+rename it again.
 
 ---
 

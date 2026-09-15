@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Re-seed room-checkout.html from a master Class Schedule workbook.
+"""Re-seed index.html from a master Class Schedule workbook.
 
 The workbook has one sheet per weekday, rooms across row 3, and a 5-minute
 time grid down column A starting at 8:00 in row 4. A booking is a run of
