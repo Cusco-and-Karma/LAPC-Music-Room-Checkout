@@ -134,6 +134,59 @@ The importer expects the spreadsheet's existing layout: one sheet per weekday,
 rooms across row 3, five-minute rows from 8:00 in row 4, and colour-coded
 blocks. If that layout changes, the importer needs updating too.
 
+## Backups and version history
+
+A GitHub Action runs every night at about 4am Los Angeles time and saves the
+database to `backups/` as an Excel workbook. It needs no secrets: it reads with
+the same public key the site uses, which the access rules limit to reading.
+
+- `backups/latest.xlsx` — always the most recent snapshot
+- `backups/room-checkout-YYYY-MM-DD.xlsx` — one per day the data actually
+  changed, so the history is a list of real versions rather than 365 identical
+  files
+- the git history of `backups/` is the version log; every restore point is a
+  commit you can browse on GitHub
+
+Each workbook has Monday–Friday sheets showing the class schedule as a readable
+grid, plus **Checkouts**, **Changes** and **Rooms** — the three data sheets that
+a restore actually reads.
+
+To run one now rather than waiting for tonight: **Actions → Daily backup → Run
+workflow**.
+
+### Restoring
+
+Preview first. This never writes anything without `--apply`:
+
+```bash
+python3 restore.py backups/room-checkout-2026-09-15.xlsx
+```
+
+It prints exactly what would change — what gets restored, what gets altered,
+and what gets deleted. When it looks right:
+
+```bash
+python3 restore.py backups/room-checkout-2026-09-15.xlsx --apply
+```
+
+You will be asked to type `restore` to confirm, then to sign in with the shared
+department account, since writing requires an editor. The password is not
+echoed and is never stored.
+
+Restoring makes the database **match the backup exactly**: anything created
+after that backup was taken is deleted. To recover one deleted checkout without
+rolling everything back, open the backup, read the row, and re-enter it in the
+site by hand.
+
+The class schedule is not part of a restore — it lives in `index.html` and is
+recovered with git, or by re-running the importer.
+
+### What is not covered
+
+These backups cover the database. They do not cover the Supabase project
+itself: if the project were deleted, you would recreate it with `schema.sql`,
+create the editor account again, update `config.js`, and then restore.
+
 ## Housekeeping
 
 Cancellations and changes accumulate one row per changed occurrence. It is not a

@@ -1,3 +1,7 @@
 .DS_Store
-*.xlsx
 __pycache__/
+
+# The master Class Schedule workbook is the department's file, not ours.
+*.xlsx
+# Backups are ours, and the whole point is that they are versioned.
+!backups/*.xlsx

@@ -1,0 +1,46 @@
+name: Daily backup
+
+# 11:00 UTC is about 4am in Los Angeles. GitHub runs cron in UTC and does not
+# follow daylight saving, so this drifts by an hour twice a year, which does
+# not matter for a nightly snapshot. Scheduled runs can also be delayed when
+# GitHub is busy.
+on:
+  schedule:
+    - cron: "0 11 * * *"
+  workflow_dispatch:        # lets you run one by hand from the Actions tab
+
+permissions:
+  contents: write
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install --quiet openpyxl
+
+      # No secrets needed: the backup reads with the same public key the
+      # website uses, which row-level security limits to reading.
+      - name: Take the backup
+        run: python3 backup.py
+
+      - name: Commit if anything changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backups
+          if git diff --cached --quiet; then
+            echo "Nothing changed today."
+          else
+            git commit -m "Backup $(date -u +%Y-%m-%d)"
+            git push
+          fi
