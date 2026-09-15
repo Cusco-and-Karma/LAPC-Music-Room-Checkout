@@ -60,8 +60,12 @@ The site appears at `https://<user>.github.io/<repo>/` within a minute or two.
 signed in for weeks. The badge reads *Can edit* and **+ Check out rooms**
 appears.
 
-**Checking out rooms.** *+ Check out rooms* → pick rooms, a date range, a time
-range, and optionally specific weekdays. Overlaps with existing classes are
+**Checking out rooms.** *+ Check out rooms* → pick rooms, a category, a date
+range, a time range, and optionally specific weekdays. The category sets the
+block's colour and lets people filter by it: checkout, event, tutoring, AMP
+lesson, accompanist, office hours, Encore, or blocked. It can be changed later
+from the block itself, and applies to every date in that checkout. Classes are
+not offered, since those come from the spreadsheet. Overlaps with existing classes are
 listed before saving; they don't block the checkout, they just warn.
 
 **Changing a lesson.** Click any block: cancel that date, move it to another room
@@ -70,6 +74,9 @@ master intact. *Reset to master* undoes them.
 
 **Changes panel.** Everything layered on top of the master, in date order. Click
 an entry to jump to it.
+
+**Filtering.** The colour keys along the bottom are buttons — click Event, or
+Tutoring, or several at once, to show only those. *Cancelled* filters too.
 
 **Showing and hiding rooms.** *Rooms* lists every room as a toggle. Switching one
 off drops it from the grid — useful for trimming 21 columns down to the handful
