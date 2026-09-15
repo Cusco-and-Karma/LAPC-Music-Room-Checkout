@@ -201,15 +201,20 @@ def main():
     marker = out / ".fingerprint"
     unchanged = marker.exists() and marker.read_text().strip() == fp
 
+    # Every workbook embeds the time it was taken, so rewriting an unchanged
+    # one would produce a new file daily and bury the real versions. Skip it:
+    # the existing latest.xlsx is still accurate, and the Actions log is the
+    # record that the backup ran.
+    if unchanged and (out / "latest.xlsx").exists():
+        print("Data unchanged since the last backup; nothing written.")
+        return 0
+
     wb = build(rows, data, term, taken)
     wb.save(out / "latest.xlsx")
-    if unchanged:
-        print("Data unchanged since the last backup; refreshed latest.xlsx only.")
-    else:
-        dated = out / f"room-checkout-{stamp}.xlsx"
-        wb.save(dated)
-        marker.write_text(fp + "\n")
-        print(f"Wrote {dated.name}")
+    dated = out / f"room-checkout-{stamp}.xlsx"
+    wb.save(dated)
+    marker.write_text(fp + "\n")
+    print(f"Wrote {dated.name} and latest.xlsx")
     return 0
 
 
