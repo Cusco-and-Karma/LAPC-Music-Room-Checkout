@@ -74,7 +74,10 @@ checkout form with the search already filled in. Hidden rooms are still
 searched, since hiding is only about your own view.
 
 **Checking out rooms.** *+ Check out rooms* → pick rooms, a category, a date
-range, a time range, and optionally specific weekdays. The category sets the
+range, a time range, and optionally specific weekdays. Tick **All day** to hold the room for
+the whole day instead of naming times — it fills the room's column and counts as
+busy at any hour, so the room finder and the overlap warning both treat it as
+taken. The category sets the
 block's colour and lets people filter by it: checkout, event, tutoring, AMP
 lesson, accompanist, office hours, Encore, or blocked. It can be changed later
 from the block itself, and applies to every date in that checkout. Classes are

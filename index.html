@@ -257,6 +257,11 @@ input[type=text]::placeholder{color:var(--ink-3)}
 .si-sub{font-size:12.5px;color:var(--ink-3);margin:6px 0 16px;line-height:1.5}
 .signin form{display:flex;flex-direction:column;gap:12px}
 .si-err{margin:0;font-size:12.5px;color:var(--accent);font-weight:600;line-height:1.5}
+.check{display:flex;align-items:center;gap:9px;cursor:pointer;font-size:13px;
+  padding:9px 11px;border:1px solid var(--line-2);border-radius:var(--r);background:var(--surface)}
+.check:hover{background:var(--surface-2)}
+.check input{width:16px;height:16px;accent-color:var(--accent);flex:none;margin:0;cursor:pointer}
+.check input:checked+span{font-weight:600}
 .pwwrap{position:relative;display:flex}
 .pwwrap input{flex:1;padding-right:58px}
 .pwtoggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);
@@ -509,7 +514,8 @@ function occurrencesOn(date){
     for (const room of (r.rooms||[])){
       const o = { srcId:"res:"+id, resId:id, src:"res", date, kind:r.kind||"checkout", room,
         start:toMin(r.timeStart), end:toMin(r.timeEnd), code:"", title:r.title||"Checkout",
-        person:r.person||"", cancelled:false, moved:false, note:r.note||"", dateNote:"", ex:ex||null,
+        person:r.person||"", cancelled:false, moved:false, note:r.note||"", dateNote:"",
+        allDay: !!r.allDay, ex:ex||null,
         origRoom:room, origStart:toMin(r.timeStart), origEnd:toMin(r.timeEnd), res:r };
       if (ex){
         if (ex.note){ o.note = ex.note; o.dateNote = ex.note; }
@@ -551,7 +557,11 @@ const overlaps = (a,b) => a.start < b.end && b.start < a.end;
 /* ---------- grid rendering ---------- */
 function gridBounds(all){
   let lo = 8*60, hi = 22*60;
-  for (const o of all){ if(o.start<lo) lo=Math.floor(o.start/60)*60; if(o.end>hi) hi=Math.ceil(o.end/60)*60; }
+  for (const o of all){
+    if (o.allDay) continue;   // spans midnight to midnight; would blow the grid out to 24h
+    if(o.start<lo) lo=Math.floor(o.start/60)*60;
+    if(o.end>hi) hi=Math.ceil(o.end/60)*60;
+  }
   return [lo,hi];
 }
 function render(){
@@ -627,7 +637,9 @@ function render(){
     // lay out overlaps side by side
     const lanes = assignLanes(occ);
     occ.forEach((o,i)=>{
-      const L = lanes[i], top=y(o.start), h=Math.max(15,(o.end-o.start)*ppm-2);
+      const L = lanes[i];
+      const top = o.allDay ? y(lo) : y(o.start);
+      const h = o.allDay ? (hi-lo)*ppm : Math.max(15,(o.end-o.start)*ppm-2);
       const w = 100/L.of, left = L.idx*w;
       const cls = ["ev"]; if(o.cancelled)cls.push("cancelled"); if(o.moved)cls.push("moved");
       if(h<26)cls.push("tiny"); else if(h<40)cls.push("short");
@@ -638,7 +650,7 @@ function render(){
       html += `<button class="${cls.join(" ")}" data-k="${o.kind}" data-i="${i}" data-col="${esc(c.key)}"
         style="top:${top}px;height:${h}px;left:calc(${left}% + 3px);width:calc(${w}% - 6px)"
         title="${esc(o.title)} ${fmt12(o.start)}-${fmt12(o.end)}">
-        <div class="t">${fmt12(o.start)} &ndash; ${fmt12(o.end)}</div>
+        <div class="t">${o.allDay ? "All day" : `${fmt12(o.start)} &ndash; ${fmt12(o.end)}`}</div>
         <div class="n">${tag}${esc(o.title)}</div>
         ${sub?`<div class="s">${sub}</div>`:``}
         ${o.cancelled?`<span class="flag cx">Cancelled</span>`:o.moved?`<span class="flag">Changed</span>`:
@@ -816,7 +828,7 @@ document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeDrawer(); })
 
 function openOccurrence(o){
   state.sel = o;
-  const when = `${fmt12(o.start)} – ${fmt12(o.end)}`;
+  const when = o.allDay ? "All day" : `${fmt12(o.start)} – ${fmt12(o.end)}`;
   const orig = (o.moved) ? `<dt>Was</dt><dd class="mono">${esc(o.origRoom)} · ${fmt12(o.origStart)} – ${fmt12(o.origEnd)}</dd>` : "";
   let body = `
     <dl class="kv">
@@ -833,7 +845,7 @@ function openOccurrence(o){
   if (o.src === "res" && o.res){
     const r = o.res;
     body += `<div class="note">Part of a checkout running <span class="mono">${esc(shortDate(r.dateStart))} – ${esc(shortDate(r.dateEnd))}</span>,
-      <span class="mono">${fmt12(toMin(r.timeStart))} – ${fmt12(toMin(r.timeEnd))}</span>,
+      <span class="mono">${r.allDay ? "all day" : `${fmt12(toMin(r.timeStart))} – ${fmt12(toMin(r.timeEnd))}`}</span>,
       ${r.rooms.length} room${r.rooms.length>1?"s":""}${r.days&&r.days.length?", "+r.days.map(d=>DAYNAMES[d].slice(0,3)).join(" "):""}.</div>`;
   }
   if (!state.canEdit){
@@ -855,8 +867,8 @@ function openOccurrence(o){
   body += `
     <div class="sec-t" id="mEditHead">Change this date only</div>
     <div class="row">
-      <div class="field"><label for="mStart">New start</label><input type="time" id="mStart" value="${toHM(o.start)}"></div>
-      <div class="field"><label for="mEnd">New end</label><input type="time" id="mEnd" value="${toHM(o.end)}"></div>
+      <div class="field"><label for="mStart">New start</label><input type="time" id="mStart" value="${toHM(o.allDay?8*60:o.start)}"></div>
+      <div class="field"><label for="mEnd">New end</label><input type="time" id="mEnd" value="${toHM(o.allDay?17*60:o.end)}"></div>
     </div>
     <div class="field"><label for="mRoom">Room</label><select id="mRoom">${
       ROOMS.map(r=>`<option${r===o.room?" selected":""}>${esc(r)}</option>`).join("")}</select></div>
@@ -990,7 +1002,9 @@ function openNew(seed){
       <div class="chips" id="fDays">${[1,2,3,4,5,6,0].map(i=>
         `<button type="button" class="chip wd" data-d="${i}" aria-pressed="${(seed.days||[]).includes(i)}">${DAYNAMES[i].slice(0,3)}</button>`).join("")}</div></div>
     <div class="sec-t">Time</div>
-    <div class="row">
+    <label class="check"><input type="checkbox" id="fAllDay"${seed.allDay?" checked":""}>
+      <span>All day &mdash; holds the room for the whole day</span></label>
+    <div class="row" id="fTimes">
       <div class="field"><label for="fStart">Start</label><input type="time" id="fStart" value="${seed.start||"08:00"}"></div>
       <div class="field"><label for="fEnd">End</label><input type="time" id="fEnd" value="${seed.end||"17:00"}"></div>
     </div>
@@ -1009,6 +1023,8 @@ function openNew(seed){
   $("allRooms").onclick = ()=>{roomBtns.forEach(b=>b.setAttribute("aria-pressed","true"));preview();};
   $("noRooms").onclick  = ()=>{roomBtns.forEach(b=>b.setAttribute("aria-pressed","false"));preview();};
   ["fFrom","fTo","fStart","fEnd"].forEach(id=>$(id).onchange = preview);
+  const syncAllDay = ()=>{ $("fTimes").classList.toggle("hidden", $("fAllDay").checked); preview(); };
+  $("fAllDay").onchange = syncAllDay;
   $("fCancel").onclick = closeDrawer;
 
   const read = () => ({
@@ -1018,7 +1034,10 @@ function openNew(seed){
     rooms: roomBtns.filter(b=>b.getAttribute("aria-pressed")==="true").map(b=>b.dataset.r),
     days: dayBtns.filter(b=>b.getAttribute("aria-pressed")==="true").map(b=>+b.dataset.d),
     dateStart: $("fFrom").value, dateEnd: $("fTo").value,
-    timeStart: $("fStart").value, timeEnd: $("fEnd").value,
+    allDay: $("fAllDay").checked,
+    // a real whole day, so it also blocks correctly in conflicts and the finder
+    timeStart: $("fAllDay").checked ? "00:00" : $("fStart").value,
+    timeEnd:   $("fAllDay").checked ? "23:59" : $("fEnd").value,
     note: $("fNote").value.trim(), cancelled:false, at: Date.now()
   });
   function preview(){
@@ -1029,17 +1048,17 @@ function openNew(seed){
       ? `<div class="note warn"><strong>${hits.length} overlap${hits.length>1?"s":""}</strong> with what is already scheduled.
          You can still check out — the grid will show them side by side.
          <div style="margin-top:6px;font-family:var(--font-m);font-size:11.5px;line-height:1.5">
-         ${hits.slice(0,6).map(h=>`${shortDate(h.date)} · ${h.room.split(" ")[0]} · ${esc(h.title)} ${fmt12(h.start)}–${fmt12(h.end)}`).join("<br>")}
+         ${hits.slice(0,6).map(h=>`${shortDate(h.date)} · ${h.room.split(" ")[0]} · ${esc(h.title)} ${h.allDay ? "(all day)" : `${fmt12(h.start)}–${fmt12(h.end)}`}`).join("<br>")}
          ${hits.length>6?`<br>+ ${hits.length-6} more`:""}</div></div>`
       : `<div class="note" style="color:var(--ok)">No conflicts in that range.</div>`;
   }
-  preview();
+  syncAllDay();   // also runs the first preview(); read() is defined by now
   $("fSave").onclick = async ()=>{
     const r = read();
     if (!r.rooms.length) return flash("Pick at least one room.");
     if (!r.dateStart || !r.dateEnd) return flash("Set a start and end date.");
     if (r.dateEnd < r.dateStart) return flash("The end date is before the start date.");
-    if (toMin(r.timeEnd) <= toMin(r.timeStart)) return flash("End time must be after the start time.");
+    if (!r.allDay && toMin(r.timeEnd) <= toMin(r.timeStart)) return flash("End time must be after the start time.");
     await state.db.collection("reservations").add(r);
     state.date = r.dateStart; closeDrawer(); render();
   };
@@ -1051,7 +1070,7 @@ function findConflicts(r){
       for (const o of occurrencesOn(d)){
         if (o.cancelled || !r.rooms.includes(o.room)) continue;
         if (o.start < toMin(r.timeEnd) && toMin(r.timeStart) < o.end)
-          out.push({date:d, room:o.room, title:o.title, start:o.start, end:o.end});
+          out.push({date:d, room:o.room, title:o.title, start:o.start, end:o.end, allDay:o.allDay});
       }
     }
     d = addDays(d,1);
@@ -1281,7 +1300,7 @@ function openChanges(){
       return `<button class="item" data-goto="${r.dateStart}">
         <span class="bar-c" style="background:var(--${r.kind==="blocked"?"k-blocked":"k-checkout"})"></span>
         <span class="m"><b>${esc(r.title)}${r.kind==="blocked"?" — blocked":""}</b>
-        <span>${esc(shortDate(r.dateStart))}–${esc(shortDate(r.dateEnd))} · ${fmt12(toMin(r.timeStart))}–${fmt12(toMin(r.timeEnd))} · ${r.rooms.map(x=>x.split(" ")[0]).join(", ")}</span>
+        <span>${esc(shortDate(r.dateStart))}–${esc(shortDate(r.dateEnd))} · ${r.allDay ? "all day" : `${fmt12(toMin(r.timeStart))}–${fmt12(toMin(r.timeEnd))}`} · ${r.rooms.map(x=>x.split(" ")[0]).join(", ")}</span>
         ${r.person?`<span>${esc(r.person)}</span>`:""}</span></button>`;
     }
     const e=row.e, lbl = e.status==="cancelled"?"Cancelled":e.status==="moved"?"Changed":"Note";
@@ -1338,7 +1357,7 @@ function buildCSV(){
     ? Array.from({length:7},(_,i)=>addDays(weekStart(state.date),i)) : [state.date];
   const rows = [["Date","Day","Room","Start","End","Type","Course","Title","Person","Status","Note"]];
   for (const d of days) for (const o of occurrencesOn(d))
-    rows.push([d, DAYNAMES[dow(d)], o.room, toHM(o.start), toHM(o.end), KINDLABEL[o.kind],
+    rows.push([d, DAYNAMES[dow(d)], o.room, o.allDay?"All day":toHM(o.start), o.allDay?"":toHM(o.end), KINDLABEL[o.kind],
       o.code, o.title, o.person, o.cancelled?"Cancelled":o.moved?"Changed":"Scheduled", o.note]);
   return rows.map(r=>r.map(c=>{ const s=String(c==null?"":c);
     return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }).join(",")).join("\n");
