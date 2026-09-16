@@ -167,6 +167,41 @@ The importer expects the spreadsheet's existing layout: one sheet per weekday,
 rooms across row 3, five-minute rows from 8:00 in row 4, and colour-coded
 blocks. If that layout changes, the importer needs updating too.
 
+## Branding
+
+`assets/` holds the department mark and the icons derived from it:
+
+| file | used for |
+|---|---|
+| `logo.svg` | the master, as supplied |
+| `logo-160.png` | the masthead (shown at 42px, so 4x for sharp screens) |
+| `apple-touch-icon.png` | a phone home-screen shortcut |
+| `favicon-32.png`, `favicon-16.png` | the browser tab |
+
+The supplied SVG is a raster image in an SVG wrapper — six embedded PNGs and
+a set of filters, 322 KB — so the PNGs above were rendered from it once rather
+than shipping the SVG to every visitor. Its square canvas is opaque white, and
+the mark is a disc, so each PNG is masked to a circle and sits correctly on a
+light or dark background.
+
+To regenerate after a logo change, replace `assets/logo.svg` and run:
+
+```bash
+qlmanage -t -s 1024 -o . assets/logo.svg     # renders logo.svg.png
+python3 - <<'PY'
+from PIL import Image, ImageDraw
+src = Image.open("logo.svg.png").convert("RGBA"); S = src.size[0]
+m = Image.new("L", (S*4, S*4), 0); ImageDraw.Draw(m).ellipse((0,0,S*4-1,S*4-1), fill=255)
+src.putalpha(m.resize((S,S), Image.LANCZOS))
+for name, size in {"logo-512":512,"apple-touch-icon":180,"logo-160":160,
+                   "favicon-32":32,"favicon-16":16}.items():
+    src.resize((size,size), Image.LANCZOS).save(f"assets/{name}.png", optimize=True)
+PY
+```
+
+The brand red is `#FF6C50`. The interface accent is deliberately a different,
+quieter colour so it does not compete with the category colours on the grid.
+
 ## Backups and version history
 
 A GitHub Action runs every night at about 4am Los Angeles time and saves the
