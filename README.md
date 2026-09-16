@@ -107,7 +107,7 @@ per-date changes at whatever scope is selected.
 **Changes panel.** Everything layered on top of the master, in date order. Click
 an entry to jump to it.
 
-**Month view.** *Month* has four modes, because twenty rooms across thirty days
+**Month view.** *Month* has three modes, because twenty rooms across thirty days
 will not fit on a screen and each mode picks a different thing to give up:
 
 | mode | answers |
@@ -115,7 +115,6 @@ will not fit on a screen and each mode picks a different thing to give up:
 | **Room** | "when is 3422 free in October?" — one room, every day |
 | **Categories** | "what events are on this month?" — all rooms, filtered by the colour keys |
 | **Agenda** | everything in the month in order, as a list — the one that prints |
-| **Occupancy** | which days and weeks are busy, shaded by how much of the building is spoken for |
 
 Clicking a day opens it; clicking an agenda row opens that booking. The search
 box and colour keys narrow all four. On a phone the grid modes drop the text and
