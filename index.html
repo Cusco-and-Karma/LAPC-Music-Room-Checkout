@@ -109,6 +109,7 @@ input[type=text]::placeholder{color:var(--ink-3)}
 /* ---------- grid ---------- */
 .stage{overflow:auto;background:var(--paper);position:relative;flex:1;min-height:0}
 .grid{display:grid;min-width:max-content;position:relative}
+.grid.month-view{display:block;min-width:0;width:100%}
 .hd{position:sticky;top:0;z-index:30;background:var(--surface);border-bottom:1px solid var(--line-2);
   padding:8px 9px;min-height:52px;display:flex;flex-direction:column;justify-content:center;gap:1px}
 .hd .rn{font-family:var(--font-m);font-weight:600;font-size:13px;letter-spacing:-.02em}
@@ -193,6 +194,62 @@ input[type=text]::placeholder{color:var(--ink-3)}
 .findnote .hits{display:flex;flex-wrap:wrap;gap:3px 16px}
 .findnote .hit{font-size:12px;color:var(--ink-2)}
 .findnote .hit b{font-weight:700;color:var(--ink)}
+/* ---------- month views ---------- */
+.month{display:flex;flex-direction:column;min-height:100%}
+.m-head{display:grid;grid-template-columns:repeat(7,1fr);position:sticky;top:0;z-index:20;
+  background:var(--surface);border-bottom:1px solid var(--line-2)}
+.m-h{padding:8px 10px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+  font-weight:700;color:var(--ink-3)}
+.m-h+.m-h{border-left:1px solid var(--line)}
+.m-body{display:grid;grid-template-columns:repeat(7,1fr);
+  grid-auto-rows:minmax(110px,calc((100vh - 230px)/var(--weeks)));flex:1}
+.m-c{position:relative;text-align:left;background:var(--surface);border:0;
+  border-right:1px solid var(--line);border-bottom:1px solid var(--line);
+  padding:6px 7px 7px;cursor:pointer;font:inherit;overflow:hidden;display:flex;
+  flex-direction:column;gap:3px;color:inherit}
+.m-c:hover{background:var(--surface-2)}
+.m-c.out{background:var(--surface-2);opacity:.5}
+.m-c.today .m-d{background:var(--accent);color:var(--accent-ink);border-radius:50%}
+.m-d{font-family:var(--font-m);font-size:11.5px;font-weight:600;color:var(--ink-2);
+  width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.m-list{display:flex;flex-direction:column;gap:2px;min-height:0;overflow:hidden}
+.m-ev{display:flex;align-items:baseline;gap:4px;font-size:10.5px;line-height:1.25;
+  padding:1px 4px;border-radius:3px;border-left:2px solid var(--k);
+  background:color-mix(in srgb, var(--k) 12%, transparent);white-space:nowrap;overflow:hidden}
+.m-ev.off{opacity:.45;text-decoration:line-through}
+.m-t{font-size:9.5px;color:var(--ink-3);flex:none}
+.m-n{font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.m-r{font-size:9.5px;color:var(--ink-3);margin-left:auto;flex:none}
+.m-more{font-size:9.5px;color:var(--ink-3);font-weight:600;padding-left:4px}
+/* occupancy */
+.m-c.heat .m-heat{position:absolute;inset:0;pointer-events:none;
+  background:var(--accent);opacity:calc(var(--load) * .82)}
+.m-c.heat>*{position:relative}
+.m-pct{font-family:var(--font-m);font-size:15px;font-weight:600;letter-spacing:-.02em}
+.m-c.heat .m-sub{font-size:9.5px;color:var(--ink-3);line-height:1.3}
+/* agenda */
+.agenda{display:flex;flex-direction:column;gap:1px;background:var(--line);
+  border-bottom:1px solid var(--line)}
+.ag-day{display:grid;grid-template-columns:62px 1fr;background:var(--surface);gap:0}
+.ag-date{padding:10px 8px;text-align:center;border-right:1px solid var(--line);
+  position:sticky;top:0;align-self:start}
+.ag-date b{display:block;font-family:var(--font-d);font-size:19px;font-weight:800;line-height:1}
+.ag-date span{display:block;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
+  font-weight:700;color:var(--ink-3);margin-top:2px}
+.ag-items{display:flex;flex-direction:column}
+.ag-item{display:flex;align-items:baseline;gap:9px;padding:8px 12px;background:transparent;
+  border:0;border-bottom:1px solid var(--line);cursor:pointer;font:inherit;
+  text-align:left;width:100%;color:inherit}
+.ag-item:last-child{border-bottom:0}
+.ag-item:hover{background:var(--surface-2)}
+.ag-item.off{opacity:.5}
+.ag-item.off .ag-what b{text-decoration:line-through}
+.ag-item .dot{width:8px;height:8px;border-radius:50%;flex:none;align-self:center}
+.ag-when{font-size:11.5px;color:var(--ink-3);width:66px;flex:none}
+.ag-what{flex:1;min-width:0;font-size:13px}
+.ag-what b{font-weight:600}
+.ag-what span{color:var(--ink-3);font-size:12px}
+.ag-room{font-size:11.5px;color:var(--ink-2);flex:none}
 .blank{padding:40px 20px;color:var(--ink-3);font-size:13px;line-height:1.6}
 .blank strong{color:var(--ink-2);font-family:var(--font-m)}
 .rmtag{display:inline-block;font-family:var(--font-m);font-size:9px;font-weight:600;
@@ -321,6 +378,29 @@ input[type=text]::placeholder{color:var(--ink-3)}
 
   .ev{padding:5px 6px 4px}
   .ev .n{font-size:12px}
+
+  /* A month cell is ~54px wide on a phone, too narrow for any text, so the
+     grid modes become density bars: colour says what, height says how many,
+     and tapping the day opens it. Agenda stays fully readable. */
+  .m-body{grid-auto-rows:minmax(74px,auto)}
+  .m-c{padding:4px 3px 5px;gap:2px}
+  .m-d{font-size:11px;width:18px;height:18px}
+  .m-list{gap:2px}
+  .m-ev{padding:0;border-left:0;border-radius:2px;height:4px;
+    background:var(--k);opacity:.85;display:block}
+  .m-ev.off{opacity:.3}
+  .m-t,.m-n,.m-r{display:none}
+  .m-more{font-size:9px;padding-left:1px}
+  .m-pct{font-size:13px}
+  .m-c.heat .m-sub{display:none}
+  .m-h{padding:6px 4px;font-size:9px;letter-spacing:.06em;text-align:center}
+  .ag-day{grid-template-columns:48px 1fr}
+  .ag-date{padding:8px 4px}
+  .ag-date b{font-size:16px}
+  .ag-item{padding:8px 10px;gap:7px}
+  .ag-when{width:56px;font-size:11px}
+  .ag-what{font-size:12.5px}
+  .ag-room{font-size:11px}
 }
 @media (max-width:420px){
   :root{--colw:138px;--gut:44px}
@@ -376,7 +456,9 @@ input[type=text]::placeholder{color:var(--ink-3)}
   <div class="seg" role="group" aria-label="View">
     <button id="vDay" aria-pressed="true">Day</button>
     <button id="vWeek" aria-pressed="false">Week</button>
+    <button id="vMonth" aria-pressed="false">Month</button>
   </div>
+  <div class="seg hidden" id="monthModes" role="group" aria-label="Month view">${""}</div>
   <select id="weekRoom" class="hidden" aria-label="Room for week view"></select>
   <div class="spacer"></div>
   <input type="search" class="search" id="search" placeholder="Class, room or person"
@@ -452,6 +534,7 @@ const roomTag = r => (r.match(/^3414-([A-I])\b/)||[,""])[1];
 const state = {
   date: iso(new Date()), view:"day", weekRoom: ROOMS[0], q:"",
   collapsePractice: true, kinds: new Set(), rooms: new Map(), hidden: new Set(),
+  monthMode: "room",
   canEdit:false, db:null, downloads:null,
   exceptions:new Map(), reservations:new Map(), sel:null
 };
@@ -566,6 +649,13 @@ function gridBounds(all){
 }
 function render(){
   const grid = document.getElementById("grid");
+  if (state.view !== "month") grid.className = "grid";
+  if (state.view === "month"){
+    paintStamp(); paintChangeCount(); paintSearchNote();
+    document.getElementById("termnote").classList.add("hidden");
+    renderMonth();
+    return;
+  }
   const isWeek = state.view === "week";
   const days = isWeek ? Array.from({length:7},(_,i)=>addDays(weekStart(state.date),i)) : [state.date];
   let cols;
@@ -709,6 +799,95 @@ function paintSearchNote(){
       &middot; ${esc(h.room.split(" ")[0])}${h.instructor?" &middot; "+esc(h.instructor):""}</span>`).join("")}</span>`;
 }
 
+/* ---------- month views ---------- */
+function visibleOn(date, rooms){
+  return occurrencesOn(date)
+    .filter(o => rooms.includes(o.room))
+    .filter(matchKind).filter(matchQ)
+    .sort((a,b) => (b.allDay?0:1)-(a.allDay?0:1) || a.start-b.start);
+}
+const evTime = o => o.allDay ? "all day" : fmt12(o.start);
+
+function renderMonth(){
+  const grid = document.getElementById("grid");
+  const days = monthDays(state.date);
+  const anchor = state.date;
+  const rooms = visibleRooms();
+  const todayISO = iso(new Date());
+  const mode = state.monthMode;
+  grid.className = "grid month-view";
+  grid.style.gridTemplateColumns = "";
+
+  if (mode === "agenda"){
+    const inMonth = days.filter(d => sameMonth(d, anchor));
+    const blocks = inMonth.map(d => ({date:d, list: visibleOn(d, rooms)})).filter(x => x.list.length);
+    grid.innerHTML = `<div class="agenda">${
+      blocks.length ? blocks.map(b => `
+        <div class="ag-day">
+          <div class="ag-date"><b>${parseISO(b.date).getDate()}</b>
+            <span>${DAYNAMES[dow(b.date)].slice(0,3)}</span></div>
+          <div class="ag-items">${b.list.map((o,i) => `
+            <button class="ag-item${o.cancelled?" off":""}" data-d="${b.date}" data-i="${i}">
+              <span class="dot" style="background:var(${KINDVAR[o.kind]})"></span>
+              <span class="ag-when mono">${evTime(o)}</span>
+              <span class="ag-what"><b>${esc(o.title)}</b>${o.person?` <span>${esc(o.person)}</span>`:""}</span>
+              <span class="ag-room mono">${esc(o.room.split(" ")[0])}</span>
+            </button>`).join("")}</div>
+        </div>`).join("")
+      : `<div class="blank">Nothing scheduled in ${esc(monthLabel(anchor))}${
+          state.q||state.kinds.size ? " matching the current filter" : ""}.</div>`
+    }</div>`;
+    grid.querySelectorAll(".ag-item").forEach(b => b.onclick = ()=>{
+      const list = visibleOn(b.dataset.d, rooms);
+      state.date = b.dataset.d;
+      openOccurrence(list[+b.dataset.i]);
+    });
+    return;
+  }
+
+  // the three calendar-grid modes share a shell
+  const head = [0,1,2,3,4,5,6].map(i => `<div class="m-h">${DAYNAMES[i].slice(0,3)}</div>`).join("");
+  const cells = days.map(d => {
+    const out = sameMonth(d, anchor);
+    const cls = ["m-c"];
+    if (!out) cls.push("out");
+    if (d === todayISO) cls.push("today");
+
+    let inner = "";
+    if (mode === "heat"){
+      const {load, count, busyRooms} = dayLoad(d);
+      const pct = Math.round(load * 100);
+      cls.push("heat");
+      inner = `<div class="m-heat" style="--load:${load.toFixed(3)}"></div>
+        <div class="m-pct">${out && (count||pct) ? pct + "%" : ""}</div>
+        ${out && count ? `<div class="m-sub">${busyRooms} room${busyRooms===1?"":"s"} &middot; ${count} booking${count===1?"":"s"}</div>` : ""}`;
+    } else {
+      const only = mode === "room" ? [state.weekRoom] : rooms;
+      const list = visibleOn(d, only);
+      // phones render each booking as a 4px bar rather than a line of text,
+      // so more of them fit before the cell has to say "+N more"
+      const cap = window.matchMedia("(max-width:760px)").matches ? 9 : 4;
+      const shown = list.slice(0, cap);
+      inner = `<div class="m-list">${shown.map(o => `
+          <span class="m-ev${o.cancelled?" off":""}" style="--k:var(${KINDVAR[o.kind]})">
+            <span class="m-t mono">${evTime(o)}</span>
+            <span class="m-n">${esc(o.title)}</span>
+            ${mode === "category" ? `<span class="m-r mono">${esc(o.room.split(" ")[0])}</span>` : ""}
+          </span>`).join("")}
+        ${list.length > shown.length ? `<span class="m-more">+${list.length - shown.length} more</span>` : ""}
+      </div>`;
+    }
+    return `<button class="${cls.join(" ")}" data-d="${d}">
+      <span class="m-d">${parseISO(d).getDate()}</span>${inner}</button>`;
+  }).join("");
+
+  grid.innerHTML = `<div class="month"><div class="m-head">${head}</div>
+    <div class="m-body" style="--weeks:${days.length/7}">${cells}</div></div>`;
+  grid.querySelectorAll(".m-c").forEach(b => b.onclick = ()=>{
+    state.date = b.dataset.d; state.view = "day"; syncView(); render();
+  });
+}
+
 function assignLanes(occ){
   const ends=[], out=[];
   const groups=[]; let cur=[];
@@ -731,6 +910,12 @@ function assignLanes(occ){
 function weekStart(d){ return addDays(d, -dow(d)); }
 function paintStamp(){
   const el = document.getElementById("stamp");
+  if (state.view === "month"){
+    const label = MONTHMODES.find(m => m[0] === state.monthMode)[1];
+    el.innerHTML = `<small>${esc(state.monthMode === "room" ? state.weekRoom.split(" ")[0] : label)}</small>${esc(monthLabel(state.date))}`;
+    document.getElementById("datepick").value = state.date;
+    return;
+  }
   if (state.view === "week"){
     const s = weekStart(state.date);
     el.innerHTML = `<small>Week of</small>${esc(shortDate(s))} &ndash; ${esc(shortDate(addDays(s,6)))}`;
@@ -766,6 +951,60 @@ function paintLegend(){
   });
   const cl = document.getElementById("clearKinds");
   if (cl) cl.onclick = ()=>{ state.kinds.clear(); paintLegend(); render(); };
+}
+
+/* ---------- month helpers ---------- */
+const MONTHMODES = [["room","Room"],["category","Categories"],["agenda","Agenda"],["heat","Occupancy"]];
+const OPEN_MINUTES = 14 * 60;                      // the 8am-10pm the grid shows
+const monthLabel = d => parseISO(d).toLocaleDateString(undefined,{month:"long",year:"numeric"});
+
+/* Whole weeks covering the anchor's month, Sunday first, trimmed so there is
+   never a trailing row belonging entirely to the next month. */
+function monthDays(anchor){
+  const [y, m] = anchor.split("-").map(Number);
+  const first = `${y}-${pad(m)}-01`;
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const lead = dow(first);
+  const weeks = Math.ceil((lead + daysInMonth) / 7);
+  const start = addDays(first, -lead);
+  return Array.from({length: weeks * 7}, (_, i) => addDays(start, i));
+}
+const sameMonth = (a, b) => a.slice(0,7) === b.slice(0,7);
+const addMonths = (d, n) => {
+  const [y, m] = d.split("-").map(Number);
+  const t = new Date(y, m - 1 + n, 1);
+  return `${t.getFullYear()}-${pad(t.getMonth()+1)}-01`;
+};
+
+/* How much of the day is spoken for, as a fraction. Intervals are merged per
+   room so two things booked at once do not count as double occupancy. */
+function dayLoad(date){
+  const rooms = visibleRooms();
+  if (!rooms.length) return {load:0, count:0, busyRooms:0};
+  const byRoom = new Map(rooms.map(r => [r, []]));
+  let count = 0;
+  for (const o of occurrencesOn(date)){
+    if (o.cancelled || !byRoom.has(o.room)) continue;
+    if (!matchKind(o) || !matchQ(o)) continue;
+    count++;
+    const lo = o.allDay ? 8*60 : Math.max(o.start, 8*60);
+    const hi = o.allDay ? 22*60 : Math.min(o.end, 22*60);
+    if (hi > lo) byRoom.get(o.room).push([lo, hi]);
+  }
+  let busy = 0, busyRooms = 0;
+  for (const spans of byRoom.values()){
+    if (!spans.length) continue;
+    busyRooms++;
+    spans.sort((a,b)=>a[0]-b[0]);
+    let [cs, ce] = spans[0];
+    for (let i = 1; i < spans.length; i++){
+      const [s2, e2] = spans[i];
+      if (s2 <= ce) ce = Math.max(ce, e2);
+      else { busy += ce - cs; cs = s2; ce = e2; }
+    }
+    busy += ce - cs;
+  }
+  return {load: busy / (rooms.length * OPEN_MINUTES), count, busyRooms};
 }
 
 /* ---------- recurrence ----------
@@ -1353,7 +1592,9 @@ async function clearException(baseId, date){
 
 /* ---------- export ---------- */
 function buildCSV(){
-  const days = state.view==="week"
+  const days = state.view==="month"
+    ? monthDays(state.date).filter(d => sameMonth(d, state.date))
+    : state.view==="week"
     ? Array.from({length:7},(_,i)=>addDays(weekStart(state.date),i)) : [state.date];
   const rows = [["Date","Day","Room","Start","End","Type","Course","Title","Person","Status","Note"]];
   for (const d of days) for (const o of occurrencesOn(d))
@@ -1364,7 +1605,7 @@ function buildCSV(){
 }
 function doExport(){
   const csv = buildCSV();
-  const name = `room-schedule-${state.view==="week"?"week-of-"+weekStart(state.date):state.date}.csv`;
+  const name = `room-schedule-${state.view==="month"?state.date.slice(0,7):state.view==="week"?"week-of-"+weekStart(state.date):state.date}.csv`;
   const url = URL.createObjectURL(new Blob(["\ufeff"+csv], {type:"text/csv;charset=utf-8"}));
   const a = Object.assign(document.createElement("a"), {href:url, download:name});
   document.body.appendChild(a); a.click(); a.remove();
@@ -1373,18 +1614,40 @@ function doExport(){
 
 /* ---------- wiring ---------- */
 function syncView(){
-  const week = state.view==="week";
-  document.getElementById("vDay").setAttribute("aria-pressed", String(!week));
-  document.getElementById("vWeek").setAttribute("aria-pressed", String(week));
-  document.getElementById("weekRoom").classList.toggle("hidden", !week);
+  const v = state.view;
+  document.getElementById("vDay").setAttribute("aria-pressed", String(v==="day"));
+  document.getElementById("vWeek").setAttribute("aria-pressed", String(v==="week"));
+  document.getElementById("vMonth").setAttribute("aria-pressed", String(v==="month"));
+  // the room picker matters for Week, and for Month only in its Room mode
+  const needsRoom = v==="week" || (v==="month" && state.monthMode==="room");
+  document.getElementById("weekRoom").classList.toggle("hidden", !needsRoom);
+  const modes = document.getElementById("monthModes");
+  modes.classList.toggle("hidden", v!=="month");
+  if (v === "month" && !modes.dataset.built){
+    modes.innerHTML = MONTHMODES.map(([k,lbl]) =>
+      `<button data-m="${k}" aria-pressed="${k===state.monthMode}">${lbl}</button>`).join("");
+    modes.dataset.built = "1";
+    modes.querySelectorAll("button").forEach(b => b.onclick = ()=>{
+      state.monthMode = b.dataset.m;
+      modes.querySelectorAll("button").forEach(x =>
+        x.setAttribute("aria-pressed", String(x.dataset.m === state.monthMode)));
+      syncView(); render();
+    });
+  }
   paintFold();
 }
-document.getElementById("prev").onclick = ()=>{ state.date = addDays(state.date, state.view==="week"?-7:-1); render(); };
-document.getElementById("next").onclick = ()=>{ state.date = addDays(state.date, state.view==="week"?7:1); render(); };
+const step = n => {
+  state.date = state.view === "month" ? addMonths(state.date, n)
+             : addDays(state.date, state.view === "week" ? n*7 : n);
+  render();
+};
+document.getElementById("prev").onclick = ()=> step(-1);
+document.getElementById("next").onclick = ()=> step(1);
 document.getElementById("today").onclick = ()=>{ state.date = iso(new Date()); render(); };
 document.getElementById("datepick").onchange = e=>{ if(e.target.value){ state.date = e.target.value; render(); } };
-document.getElementById("vDay").onclick  = ()=>{ state.view="day"; syncView(); render(); };
-document.getElementById("vWeek").onclick = ()=>{ state.view="week"; syncView(); render(); };
+document.getElementById("vDay").onclick   = ()=>{ state.view="day";   syncView(); render(); };
+document.getElementById("vWeek").onclick  = ()=>{ state.view="week";  syncView(); render(); };
+document.getElementById("vMonth").onclick = ()=>{ state.view="month"; syncView(); render(); };
 document.getElementById("search").oninput = e=>{ state.q = e.target.value.trim(); render(); };
 function paintRoomsBtn(){
   const n = ROOMS.filter(isHidden).length;
@@ -1394,7 +1657,7 @@ function paintFold(){
   const b = document.getElementById("foldBtn");
   b.textContent = state.collapsePractice ? `Show practice rooms (${PRACTICE.length})` : "Hide practice rooms";
   b.setAttribute("aria-pressed", String(!state.collapsePractice));
-  b.classList.toggle("hidden", state.view === "week");
+  b.classList.toggle("hidden", state.view !== "day");
 }
 document.getElementById("foldBtn").onclick = ()=>{
   state.collapsePractice = !state.collapsePractice; paintFold(); render();
