@@ -88,8 +88,20 @@ master intact. *Reset to master* undoes them.
 **Changes panel.** Everything layered on top of the master, in date order. Click
 an entry to jump to it.
 
-**Filtering.** The colour keys along the bottom are buttons — click Event, or
-Tutoring, or several at once, to show only those. *Cancelled* filters too.
+**Searching.** Type a course number (`216-3`), a room, or an instructor into the
+search box and the grid narrows to just that — other classes and any room with
+no match drop out. A bar above the grid says where the match sits in the week,
+so `216-3` answers "Tue & Thu, 11:10am–12:35pm, 3422, Anthony Wardzinski"
+without paging through days. Partial numbers work: `216` shows all three
+sections. Clear the box to get everything back.
+
+**Filtering by type.** The colour keys along the bottom are buttons — click
+Event, or Tutoring, or several at once, to show only those. *Cancelled* filters
+too. This stacks with the search box.
+
+**On a phone.** The toolbar and colour keys scroll sideways as single rows, the
+grid scrolls both ways with the time column and room names pinned, and panels
+open as bottom sheets.
 
 **Showing and hiding rooms.** *Rooms* lists every room as a toggle. Switching one
 off drops it from the grid — useful for trimming 21 columns down to the handful

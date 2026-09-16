@@ -178,6 +178,15 @@ input[type=text]::placeholder{color:var(--ink-3)}
 .sw{width:11px;height:11px;border-radius:3px;border:1px solid;border-left-width:3px;flex:none}
 .termnote{padding:8px 20px;background:var(--warn-bg);color:var(--warn);border-bottom:1px solid var(--line);
   font-size:12.5px;font-weight:500}
+.findnote{padding:8px 20px;background:var(--accent-soft);color:var(--ink);
+  border-bottom:1px solid var(--accent-line);font-size:12.5px;line-height:1.5;
+  display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.findnote>strong{color:var(--accent);font-family:var(--font-m);flex:none}
+.findnote .hits{display:flex;flex-wrap:wrap;gap:3px 16px}
+.findnote .hit{font-size:12px;color:var(--ink-2)}
+.findnote .hit b{font-weight:700;color:var(--ink)}
+.blank{padding:40px 20px;color:var(--ink-3);font-size:13px;line-height:1.6}
+.blank strong{color:var(--ink-2);font-family:var(--font-m)}
 .rmtag{display:inline-block;font-family:var(--font-m);font-size:9px;font-weight:600;
   background:var(--ink);color:var(--paper);border-radius:3px;padding:0 3px;margin-right:4px;
   vertical-align:1px;letter-spacing:0}
@@ -242,12 +251,60 @@ input[type=text]::placeholder{color:var(--ink-3)}
 .si-err{margin:0;font-size:12.5px;color:var(--accent);font-weight:600}
 .si-actions{display:flex;gap:8px;margin-top:4px}
 @media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
-@media (max-width:640px){
-  :root{--colw:132px;--gut:52px}
-  .mast{padding:12px 14px 10px}.bar{padding:9px 14px;gap:8px}.legend{padding:8px 14px;gap:10px;font-size:11px}
-  .datestamp{min-width:0;font-size:14px}.datestamp small{font-size:9.5px}
-  .search{min-width:0;flex:1}
-  .mast h1{font-size:17px}
+/* ---------- phones ---------- */
+@media (max-width:760px){
+  :root{--colw:150px;--gut:50px}
+
+  .mast{padding:10px 14px 8px;gap:8px}
+  .mast h1{font-size:16px}
+  .mast .dept{font-size:9.5px;letter-spacing:.1em}
+  .badge{font-size:9.5px;padding:3px 7px}
+
+  /* one scrolling row of controls instead of three stacked ones */
+  .bar{padding:8px 14px;gap:6px;flex-wrap:nowrap;overflow-x:auto;
+       scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .bar::-webkit-scrollbar{display:none}
+  .bar>*{flex:none}
+  .bar .spacer{display:none}
+  .btn{padding:8px 11px}                       /* taller tap targets */
+  .seg button{padding:8px 12px}
+  .datestamp{min-width:0;font-size:13.5px;white-space:nowrap}
+  .datestamp small{font-size:9px}
+  .search{min-width:150px;padding:8px 10px}
+  input[type=date]{padding:7px 8px}
+
+  /* the legend scrolls sideways rather than eating four rows of height */
+  .legend{padding:7px 14px;gap:4px;flex-wrap:nowrap;overflow-x:auto;
+          scrollbar-width:none}
+  .legend::-webkit-scrollbar{display:none}
+  .legend>*{flex:none}
+  .legend .meta{display:none}
+
+  .termnote,.findnote{padding:7px 14px;font-size:12px}
+  .findnote{flex-direction:column;gap:4px}
+  .findnote .hits{flex-direction:column;gap:2px}
+
+  /* the drawer reads better as a bottom sheet on a phone */
+  .drawer{top:auto;left:0;right:0;bottom:0;width:auto;height:88vh;height:88dvh;
+          border-left:0;border-top:1px solid var(--line-2);
+          border-radius:16px 16px 0 0;transform:translateY(100%)}
+  .drawer.on{transform:none}
+  .dhead{padding:14px 16px 10px}
+  .dhead::before{content:"";position:absolute;top:6px;left:50%;transform:translateX(-50%);
+                 width:36px;height:4px;border-radius:2px;background:var(--line-2)}
+  .dhead{position:relative}
+  .dbody{padding:14px 16px;gap:14px}
+  .dfoot{padding:10px 16px;padding-bottom:max(10px,env(safe-area-inset-bottom))}
+  .row{grid-template-columns:1fr}            /* paired fields stack */
+  .chip{padding:7px 12px}                    /* easier to hit */
+  .signin{width:calc(100vw - 24px);padding:18px}
+
+  .ev{padding:5px 6px 4px}
+  .ev .n{font-size:12px}
+}
+@media (max-width:420px){
+  :root{--colw:138px;--gut:44px}
+  .mast h1{font-size:15px}
 }
 </style>
 
@@ -293,7 +350,9 @@ input[type=text]::placeholder{color:var(--ink-3)}
   </div>
   <select id="weekRoom" class="hidden" aria-label="Room for week view"></select>
   <div class="spacer"></div>
-  <input type="text" class="search" id="search" placeholder="Filter room, class, person" aria-label="Filter">
+  <input type="search" class="search" id="search" placeholder="Class, room or person"
+    aria-label="Search classes, rooms and people" autocapitalize="off" autocorrect="off"
+    autocomplete="off" spellcheck="false" enterkeyhint="search">
   <button class="btn" id="foldBtn" title="Show or hide practice rooms 3414-A through 3414-I"></button>
   <button class="btn" id="findBtn">Find a room</button>
   <button class="btn" id="roomsBtn">Rooms</button>
@@ -303,6 +362,7 @@ input[type=text]::placeholder{color:var(--ink-3)}
 </div>
 
 <div class="termnote hidden" id="termnote"></div>
+<div class="findnote hidden" id="findnote"></div>
 <main class="stage" id="stage"><div class="grid" id="grid"></div></main>
 
 <div class="legend" id="legend"></div>
@@ -442,8 +502,24 @@ function occurrencesOn(date){
   }
   return out.sort((a,b)=>a.start-b.start||a.end-b.end);
 }
-const matchQ = o => { if(!state.q) return true; const q = state.q.toLowerCase();
-  return [o.room,o.title,o.code,o.person,KINDLABEL[o.kind]].some(v=>String(v||"").toLowerCase().includes(q)); };
+const searchable = o => [o.room,o.title,o.code,o.person,KINDLABEL[o.kind]]
+  .map(v=>String(v||"").toLowerCase()).join(" ~ ");
+const matchQ = o => !state.q || searchable(o).includes(state.q.toLowerCase());
+
+/* Where a search term sits in the weekly schedule, so "216-3" answers which
+   room, which days and what time without paging through the week. */
+function weeklyMatches(q){
+  const needle = q.toLowerCase();
+  const hits = BASE.filter(b => [b.room,b.title,b.code,b.instructor]
+    .map(v=>String(v||"").toLowerCase()).join(" ~ ").includes(needle));
+  const groups = new Map();
+  for (const b of hits){
+    const key = [b.code,b.title,b.instructor,b.room,b.start,b.end].join("|");
+    if (!groups.has(key)) groups.set(key, Object.assign({}, b, {days:[]}));
+    groups.get(key).days.push(b.dow);
+  }
+  return [...groups.values()].sort((a,b)=>a.days[0]-b.days[0] || a.start.localeCompare(b.start));
+}
 const matchKind = o => { const sel = state.kinds; if (!sel.size) return true;
   return sel.has(o.kind) || (sel.has("__cancelled") && o.cancelled); };
 const overlaps = (a,b) => a.start < b.end && b.start < a.end;
@@ -483,12 +559,15 @@ function render(){
 
   const byCol = new Map();
   let all = [];
+  const searching = !!state.q;
   for (const c of cols){
-    const occ = occurrencesOn(c.date)
+    let occ = occurrencesOn(c.date)
       .filter(o => c.rooms.includes(o.room))
       .filter(matchKind);
+    if (searching) occ = occ.filter(matchQ);
     byCol.set(c.key, occ); all = all.concat(occ);
   }
+  if (searching && !isWeek) cols = cols.filter(c => byCol.get(c.key).length);
   const [lo,hi] = gridBounds(all);
   const ppm = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ppm"))||1;
   const PAD = 12;                       // breathing room above the first hour
@@ -528,7 +607,7 @@ function render(){
       const w = 100/L.of, left = L.idx*w;
       const cls = ["ev"]; if(o.cancelled)cls.push("cancelled"); if(o.moved)cls.push("moved");
       if(h<26)cls.push("tiny"); else if(h<40)cls.push("short");
-      if(L.of>1)cls.push("narrow"); if(!matchQ(o))cls.push("dim");
+      if(L.of>1)cls.push("narrow");
       const sub = [o.code,o.person].filter(Boolean).join(" &middot; ");
       const tag = c.group ? `<span class="rmtag">${esc(roomTag(o.room))}</span>` : "";
       html += `<button class="${cls.join(" ")}" data-k="${o.kind}" data-i="${i}" data-col="${esc(c.key)}"
@@ -544,9 +623,14 @@ function render(){
     html += `</div>`;
   }
   grid.innerHTML = html;
-  if (!isWeek && !visibleRooms().length){
-    grid.innerHTML = `<div style="padding:40px 20px;color:var(--ink-3);font-size:13px">
-      Every room is hidden. Open <strong>Rooms</strong> and choose Show all to bring them back.</div>`;
+  paintSearchNote();
+  const blank = !isWeek && (!visibleRooms().length || (searching && !cols.length));
+  if (blank){
+    grid.innerHTML = `<div class="blank">${
+      !visibleRooms().length
+        ? `Every room is hidden. Open <strong>Rooms</strong> and choose Show all to bring them back.`
+        : `Nothing on this day matches <strong>${esc(state.q)}</strong>. Try another day, or clear the filter.`
+    }</div>`;
     grid.style.gridTemplateColumns = "1fr";
     paintStamp(); paintChangeCount();
     document.getElementById("termnote").classList.add("hidden");
@@ -571,6 +655,23 @@ function render(){
   });
   paintStamp(); paintChangeCount();
 }
+function paintSearchNote(){
+  const el = document.getElementById("findnote");
+  if (!state.q){ el.classList.add("hidden"); return; }
+  el.classList.remove("hidden");
+  const hits = weeklyMatches(state.q);
+  if (!hits.length){
+    el.innerHTML = `<strong>${esc(state.q)}</strong> &mdash; no class matches.
+      Any checkouts or events matching it still show below.`;
+    return;
+  }
+  el.innerHTML = `<strong>${esc(state.q)}</strong><span class="hits">${hits.map(h=>`<span class="hit">
+      <b>${esc([h.code,h.title].filter(Boolean).join(" \u2013 "))}</b>
+      ${esc(h.days.map(d=>DAYNAMES[d].slice(0,3)).join(" & "))}
+      ${fmt12(toMin(h.start))}&ndash;${fmt12(toMin(h.end))}
+      &middot; ${esc(h.room.split(" ")[0])}${h.instructor?" &middot; "+esc(h.instructor):""}</span>`).join("")}</span>`;
+}
+
 function assignLanes(occ){
   const ends=[], out=[];
   const groups=[]; let cur=[];
