@@ -248,7 +248,13 @@ input[type=text]::placeholder{color:var(--ink-3)}
 .signin h2{font-family:var(--font-d);font-size:18px;font-weight:800;margin:0;letter-spacing:-.015em}
 .si-sub{font-size:12.5px;color:var(--ink-3);margin:6px 0 16px;line-height:1.5}
 .signin form{display:flex;flex-direction:column;gap:12px}
-.si-err{margin:0;font-size:12.5px;color:var(--accent);font-weight:600}
+.si-err{margin:0;font-size:12.5px;color:var(--accent);font-weight:600;line-height:1.5}
+.pwwrap{position:relative;display:flex}
+.pwwrap input{flex:1;padding-right:58px}
+.pwtoggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);
+  background:transparent;border:0;cursor:pointer;font-size:11.5px;font-weight:700;
+  letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);padding:6px 8px;border-radius:5px}
+.pwtoggle:hover{background:var(--surface-2);color:var(--ink-2)}
 .si-actions{display:flex;gap:8px;margin-top:4px}
 @media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
 /* ---------- phones ---------- */
@@ -325,9 +331,16 @@ input[type=text]::placeholder{color:var(--ink-3)}
   <p class="si-sub">Viewing needs no account. Signing in unlocks checkouts and schedule changes for department staff.</p>
   <form id="siForm">
     <div class="field"><label for="siEmail">Email</label>
-      <input type="email" id="siEmail" autocomplete="username" required></div>
+      <input type="email" id="siEmail" autocomplete="username" required
+        autocapitalize="none" autocorrect="off" spellcheck="false"
+        placeholder="lapc-music@piercecollege.edu"></div>
     <div class="field"><label for="siPass">Password</label>
-      <input type="password" id="siPass" autocomplete="current-password" required></div>
+      <div class="pwwrap">
+        <input type="password" id="siPass" autocomplete="current-password" required
+          autocapitalize="none" autocorrect="off" spellcheck="false">
+        <button type="button" id="siShow" class="pwtoggle" aria-pressed="false"
+          aria-label="Show password">Show</button>
+      </div></div>
     <p class="si-err" id="siErr" hidden></p>
     <div class="si-actions">
       <button class="btn primary" type="submit" id="siGo">Sign in</button>
@@ -1323,6 +1336,14 @@ function closeSignin(){
   siBox.classList.remove("on"); siScrim.classList.remove("on"); siBox.setAttribute("aria-hidden","true");
 }
 document.getElementById("siCancel").onclick = closeSignin;
+document.getElementById("siShow").onclick = ()=>{
+  const f = document.getElementById("siPass"), b = document.getElementById("siShow");
+  const shown = f.type === "text";
+  f.type = shown ? "password" : "text";
+  b.textContent = shown ? "Show" : "Hide";
+  b.setAttribute("aria-pressed", String(!shown));
+  f.focus();
+};
 siScrim.onclick = closeSignin;
 document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeSignin(); });
 
@@ -1336,7 +1357,14 @@ document.getElementById("siForm").onsubmit = async e=>{
     password: document.getElementById("siPass").value
   });
   go.disabled = false; go.textContent = "Sign in";
-  if (error){ siErr.textContent = "That email and password did not match. Check with whoever set this up."; siErr.hidden = false; return; }
+  if (error){
+    siErr.innerHTML = "That email and password did not match.<br>" +
+      "Tap <strong>Show</strong> to check the password for a stray space or a capital " +
+      "from autocorrect. If it still fails, ask for the password to be reset.";
+    siErr.hidden = false;
+    document.getElementById("siPass").select();
+    return;
+  }
   closeSignin();
 };
 
