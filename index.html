@@ -744,6 +744,48 @@ function paintLegend(){
   if (cl) cl.onclick = ()=>{ state.kinds.clear(); paintLegend(); render(); };
 }
 
+/* ---------- recurrence ----------
+   A class repeats weekly for the term; a checkout repeats over its own date
+   range. Both give an edit three possible scopes, as Outlook does. */
+// A class the spreadsheet lists on two weekdays is two rows here but one class
+// to the person reading it, so a series spans every weekday sharing the same
+// course, room and time. Each date carries its own block id.
+const blockSig = b => [b.code, b.title, b.instructor, b.room, b.start, b.end].join("|");
+
+function seriesOccurrences(o){
+  const out = [];
+  let guard = 0;
+  if (o.src === "base"){
+    const b = BASE.find(x => x.id === o.srcId);
+    const byDow = new Map((b ? BASE.filter(x => blockSig(x) === blockSig(b)) : [])
+      .map(x => [x.dow, x.id]));
+    if (!byDow.size) byDow.set(dow(o.date), o.srcId);
+    let d = TERM.start;
+    while (d <= TERM.end && guard++ < 500){
+      if (byDow.has(dow(d))) out.push({date:d, srcId:byDow.get(dow(d))});
+      d = addDays(d, 1);
+    }
+  } else {
+    const r = o.res || {};
+    const days = (r.days && r.days.length) ? r.days : null;
+    let d = r.dateStart || o.date;
+    const last = r.dateEnd || o.date;
+    while (d <= last && guard++ < 500){
+      if (!days || days.includes(dow(d))) out.push({date:d, srcId:o.srcId});
+      d = addDays(d, 1);
+    }
+  }
+  return out;
+}
+const seriesDates = o => seriesOccurrences(o).map(x => x.date);
+const scopeDates = (o, scope) => {
+  const all = seriesOccurrences(o);
+  if (scope === "all") return all;
+  if (scope === "following") return all.filter(x => x.date >= o.date);
+  return all.filter(x => x.date === o.date);
+};
+const SCOPES = [["one","This date"],["following","This and later"],["all","Every date"]];
+
 /* ---------- drawer ---------- */
 const drawer = document.getElementById("drawer"), scrim = document.getElementById("scrim");
 function openDrawer(title, sub, body, foot){
@@ -786,13 +828,20 @@ function openOccurrence(o){
     openDrawer(o.title, KINDLABEL[o.kind], body, `<span class="badge">View only</span>`);
     return;
   }
+  const dates = seriesDates(o);
+  const repeats = dates.length > 1;
+  if (repeats) body += `
+    <div class="sec-t">Apply changes to</div>
+    <div class="chips" id="mScope">${SCOPES.map(([k,lbl],i)=>
+      `<button type="button" class="chip wd" data-s="${k}" aria-pressed="${i===0}">${lbl}</button>`).join("")}</div>
+    <div class="note" id="mScopeNote"></div>`;
   if (o.src === "res") body += `
     <div class="sec-t">Category</div>
     <div class="field"><label for="mKind">Applies to every date in this checkout</label>
       <select id="mKind">${BOOKABLE.map(k=>
         `<option value="${k}"${o.kind===k?" selected":""}>${KINDLABEL[k]}</option>`).join("")}</select></div>`;
   body += `
-    <div class="sec-t">Change this date only</div>
+    <div class="sec-t" id="mEditHead">Change this date only</div>
     <div class="row">
       <div class="field"><label for="mStart">New start</label><input type="time" id="mStart" value="${toHM(o.start)}"></div>
       <div class="field"><label for="mEnd">New end</label><input type="time" id="mEnd" value="${toHM(o.end)}"></div>
@@ -804,30 +853,97 @@ function openOccurrence(o){
   const foot = `
     <button class="btn primary" id="saveMove">Save change</button>
     ${o.cancelled ? `<button class="btn" id="restore">Restore</button>`
-                  : `<button class="btn" id="cancelOcc">Cancel this date</button>`}
+                  : `<button class="btn" id="cancelOcc">Cancel</button>`}
     ${o.ex ? `<button class="btn ghost" id="clearEx">Reset to master</button>` : ""}
     ${o.src==="res" ? `<button class="btn ghost" id="delRes" style="margin-left:auto;color:var(--accent)">Delete whole checkout</button>`:""}`;
   openDrawer(o.title, `${KINDLABEL[o.kind]} · ${longDate(o.date)}`, body, foot);
 
   const $ = id => document.getElementById(id);
+  let scope = "one";
+  const targets = () => scopeDates(o, scope);
+  function paintScope(){
+    const n = targets().length;
+    const note = $("mScopeNote");
+    if (!note) return;
+    const where = scope === "one" ? longDate(o.date)
+      : scope === "following" ? `${shortDate(o.date)} onwards`
+      : `${shortDate(dates[0])} \u2013 ${shortDate(dates[dates.length-1])}`;
+    const wds = [...new Set(seriesDates(o).map(dow))].sort()
+      .map(d => DAYNAMES[d].slice(0,3)).join(" & ");
+    note.innerHTML = `<strong>${n} date${n>1?"s":""}</strong> &middot; ${esc(where)}` +
+      (n > 1 ? ` &middot; ${esc(wds)}` : ``);
+    // keep the surrounding labels honest about what the buttons will do
+    const suffix = scope === "one" ? "this date only"
+      : scope === "following" ? `this and ${n-1} later date${n-1===1?"":"s"}`
+      : `all ${n} dates`;
+    const head = $("mEditHead");
+    if (head) head.textContent = "Change " + suffix;
+    const cx = $("cancelOcc");
+    if (cx) cx.textContent = scope === "one" ? "Cancel this date" : `Cancel ${n} dates`;
+    const rs = $("restore");
+    if (rs) rs.textContent = scope === "one" ? "Restore" : `Restore ${n} dates`;
+    const ce = $("clearEx");
+    if (ce) ce.textContent = scope === "one" ? "Reset to master" : `Reset ${n} dates`;
+  }
+  if (repeats){
+    $("mScope").querySelectorAll(".chip").forEach(b => b.onclick = ()=>{
+      $("mScope").querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed","false"));
+      b.setAttribute("aria-pressed","true"); scope = b.dataset.s; paintScope();
+    });
+    paintScope();
+  }
+
+  async function applyToDates(fn, verb){
+    const list = targets();
+    if (list.length > 1 && !confirm(`${verb} ${list.length} dates?`)) return false;
+    for (const x of list) await fn(x.date, x.srcId);
+    return true;
+  }
+
   if ($("mKind")) $("mKind").onchange = async ()=>{
     try { await state.db.doc("reservations/"+o.resId).set({...o.res, kind: $("mKind").value}); }
     catch(e){ alert("Could not change the category. If you were signed in, your session may have expired."); }
   };
   $("saveMove").onclick = async ()=>{
-    const s = $("mStart").value, e = $("mEnd").value, r = $("mRoom").value, n = $("mNote").value.trim();
-    if (toMin(e) <= toMin(s)) return flash("End time must be after the start time.");
-    const changed = (s!==toHM(o.origStart) || e!==toHM(o.origEnd) || r!==o.origRoom);
-    await writeException(o.srcId, o.date, {
-      status: changed ? "moved" : (n ? "noted" : "clear"), room:r, start:s, end:e, note:n });
-    closeDrawer();
+    const st = $("mStart").value, en = $("mEnd").value, rm = $("mRoom").value, n = $("mNote").value.trim();
+    if (toMin(en) <= toMin(st)) return flash("End time must be after the start time.");
+    const changed = (st!==toHM(o.origStart) || en!==toHM(o.origEnd) || rm!==o.origRoom);
+
+    // Editing a whole checkout is a change to the checkout itself, not a pile
+    // of per-date exceptions; "this and later" splits it in two, as Outlook does.
+    if (o.src === "res" && scope !== "one" && changed){
+      const r = o.res;
+      if (scope === "all"){
+        await state.db.doc("reservations/"+o.resId)
+          .set({...r, timeStart:st, timeEnd:en, note:n || r.note,
+                rooms: r.rooms.map(x => x === o.origRoom ? rm : x)});
+      } else {
+        const dayBefore = addDays(o.date, -1);
+        await state.db.collection("reservations").add({...r, dateStart:o.date,
+          timeStart:st, timeEnd:en, note:n || r.note,
+          rooms: r.rooms.map(x => x === o.origRoom ? rm : x), at: Date.now()});
+        if (dayBefore < r.dateStart) await state.db.doc("reservations/"+o.resId).delete();
+        else await state.db.doc("reservations/"+o.resId).set({...r, dateEnd:dayBefore});
+      }
+      closeDrawer(); return;
+    }
+
+    const ok = await applyToDates((date, id) => writeException(id, date, {
+      status: changed ? "moved" : (n ? "noted" : "clear"), room:rm, start:st, end:en, note:n }),
+      changed ? "Change" : "Add a note to");
+    if (ok) closeDrawer();
   };
   if ($("cancelOcc")) $("cancelOcc").onclick = async ()=>{
-    await writeException(o.srcId, o.date, {status:"cancelled", note:$("mNote").value.trim()});
-    closeDrawer();
+    const note = $("mNote").value.trim();
+    const ok = await applyToDates((date, id) => writeException(id, date, {status:"cancelled", note}), "Cancel");
+    if (ok) closeDrawer();
   };
-  if ($("restore")) $("restore").onclick = async ()=>{ await clearException(o.srcId, o.date); closeDrawer(); };
-  if ($("clearEx")) $("clearEx").onclick = async ()=>{ await clearException(o.srcId, o.date); closeDrawer(); };
+  const undo = async ()=>{
+    const ok = await applyToDates((date, id) => clearException(id, date), "Reset");
+    if (ok) closeDrawer();
+  };
+  if ($("restore")) $("restore").onclick = undo;
+  if ($("clearEx")) $("clearEx").onclick = undo;
   if ($("delRes")) $("delRes").onclick = async ()=>{
     if (!confirm("Delete this checkout for every date in its range?")) return;
     await state.db.doc("reservations/"+o.resId).delete(); closeDrawer();

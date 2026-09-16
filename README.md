@@ -81,9 +81,25 @@ from the block itself, and applies to every date in that checkout. Classes are
 not offered, since those come from the spreadsheet. Overlaps with existing classes are
 listed before saving; they don't block the checkout, they just warn.
 
-**Changing a lesson.** Click any block: cancel that date, move it to another room
-or time, or leave a note. Changes apply to that one date and leave the weekly
-master intact. *Reset to master* undoes them.
+**Changing a lesson.** Click any block: cancel it, move it to another room or
+time, or leave a note. A repeating block asks what the change applies to, the
+way Outlook does:
+
+| | |
+|---|---|
+| **This date** | just this one occurrence |
+| **This and later** | this date through the end of the series |
+| **Every date** | the whole series |
+
+The panel says how many dates are affected and which weekdays before you
+commit, and anything touching more than one date asks to confirm. A class the
+spreadsheet lists on two weekdays counts as one series, so cancelling MUSIC
+216-3 catches both its Tuesday and Thursday sittings.
+
+Editing a **checkout** across more than one date changes the checkout itself
+rather than stamping a pile of per-date exceptions — *This and later* splits it
+into two, exactly as Outlook does, leaving earlier dates alone. *Reset* undoes
+per-date changes at whatever scope is selected.
 
 **Changes panel.** Everything layered on top of the master, in date order. Click
 an entry to jump to it.
