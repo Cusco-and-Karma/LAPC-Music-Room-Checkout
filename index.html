@@ -621,7 +621,8 @@ function render(){
       const cls = ["ev"]; if(o.cancelled)cls.push("cancelled"); if(o.moved)cls.push("moved");
       if(h<26)cls.push("tiny"); else if(h<40)cls.push("short");
       if(L.of>1)cls.push("narrow");
-      const sub = [o.code,o.person].filter(Boolean).join(" &middot; ");
+      // escape each part, not the joined string - the separator is real markup
+      const sub = [o.code,o.person].filter(Boolean).map(esc).join(" &middot; ");
       const tag = c.group ? `<span class="rmtag">${esc(roomTag(o.room))}</span>` : "";
       html += `<button class="${cls.join(" ")}" data-k="${o.kind}" data-i="${i}" data-col="${esc(c.key)}"
         style="top:${top}px;height:${h}px;left:calc(${left}% + 3px);width:calc(${w}% - 6px)"
