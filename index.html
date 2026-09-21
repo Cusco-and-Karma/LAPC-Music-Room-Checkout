@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#000000">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
-<title>Pierce Music Room Checkout</title>
+<title>Pierce Music Room Reservations</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
@@ -405,7 +405,7 @@ input[type=text]::placeholder{color:var(--ink-3)}
     alt="Los Angeles Pierce College Music">
   <div>
     <div class="dept">Los Angeles Pierce College &middot; Music</div>
-    <h1>Room Checkout</h1>
+    <h1>Room Reservations</h1>
   </div>
   <div class="spacer"></div>
   <span class="badge live" id="connBadge">Connecting</span>
@@ -416,7 +416,7 @@ input[type=text]::placeholder{color:var(--ink-3)}
 <div class="scrim" id="authScrim"></div>
 <div class="signin" id="signin" role="dialog" aria-modal="true" aria-labelledby="siTitle" aria-hidden="true">
   <h2 id="siTitle">Sign in to edit</h2>
-  <p class="si-sub">Viewing needs no account. Signing in unlocks checkouts and schedule changes for department staff.</p>
+  <p class="si-sub">Viewing needs no account. Signing in unlocks reservations and schedule changes for department staff.</p>
   <form id="siForm">
     <div class="field"><label for="siEmail">Email</label>
       <input type="email" id="siEmail" autocomplete="username" required
@@ -461,7 +461,7 @@ input[type=text]::placeholder{color:var(--ink-3)}
   <button class="btn" id="roomsBtn">Rooms</button>
   <button class="btn" id="openChanges">Changes <span id="chgCount" class="mono"></span></button>
   <button class="btn" id="exportBtn">Export</button>
-  <button class="btn primary hidden" id="newBtn">+ Check out rooms</button>
+  <button class="btn primary hidden" id="newBtn">+ Reserve a Room</button>
 </div>
 
 <div class="termnote hidden" id="termnote"></div>
@@ -568,9 +568,12 @@ function occurrencesOn(date){
     const o = { srcId:b.id, src:"base", date, kind:b.kind, room:b.room,
       start:toMin(b.start), end:toMin(b.end), code:b.code, title:b.title,
       person:b.instructor, cancelled:false, moved:false, note:"", dateNote:"", ex:ex||null,
-      origRoom:b.room, origStart:toMin(b.start), origEnd:toMin(b.end) };
+      origRoom:b.room, origStart:toMin(b.start), origEnd:toMin(b.end),
+      origTitle:b.title||"", origPerson:b.instructor||"" };
     if (ex){
       o.note = ex.note||""; o.dateNote = ex.note||"";
+      if (ex.title)  o.title  = ex.title;
+      if (ex.person) o.person = ex.person;
       if (ex.status === "cancelled") o.cancelled = true;
       else if (ex.status === "moved"){
         o.moved = true;
@@ -588,12 +591,15 @@ function occurrencesOn(date){
     const ex = state.exceptions.get(exKey("res:"+id,date));
     for (const room of (r.rooms||[])){
       const o = { srcId:"res:"+id, resId:id, src:"res", date, kind:r.kind||"checkout", room,
-        start:toMin(r.timeStart), end:toMin(r.timeEnd), code:"", title:r.title||"Checkout",
+        start:toMin(r.timeStart), end:toMin(r.timeEnd), code:"", title:r.title||"Reservation",
         person:r.person||"", cancelled:false, moved:false, note:r.note||"", dateNote:"",
         allDay: !!r.allDay, ex:ex||null,
-        origRoom:room, origStart:toMin(r.timeStart), origEnd:toMin(r.timeEnd), res:r };
+        origRoom:room, origStart:toMin(r.timeStart), origEnd:toMin(r.timeEnd),
+        origTitle:r.title||"", origPerson:r.person||"", res:r };
       if (ex){
         if (ex.note){ o.note = ex.note; o.dateNote = ex.note; }
+        if (ex.title)  o.title  = ex.title;
+        if (ex.person) o.person = ex.person;
         if (ex.status === "cancelled") o.cancelled = true;
         else if (ex.status === "moved"){
           o.moved = true;
@@ -782,7 +788,7 @@ function paintSearchNote(){
   const hits = weeklyMatches(state.q);
   if (!hits.length){
     el.innerHTML = `<strong>${esc(state.q)}</strong> &mdash; no class matches.
-      Any checkouts or events matching it still show below.`;
+      Any reservations or events matching it still show below.`;
     return;
   }
   el.innerHTML = `<strong>${esc(state.q)}</strong><span class="hits">${hits.map(h=>`<span class="hit">
@@ -1030,14 +1036,14 @@ function openOccurrence(o){
       <dt>Time</dt><dd class="mono">${when}</dd>
       <dt>Date</dt><dd>${esc(longDate(o.date))}</dd>
       ${o.code?`<dt>Course</dt><dd class="mono">${esc(o.code)}</dd>`:""}
-      ${o.person?`<dt>${o.src==="res"?"Checked out by":"Instructor"}</dt><dd>${esc(o.person)}</dd>`:""}
+      ${o.person?`<dt>${o.src==="res"?"Reserved by":"Instructor"}</dt><dd>${esc(o.person)}</dd>`:""}
       ${orig}
     </dl>`;
   if (o.cancelled) body += `<div class="note warn"><strong>Cancelled</strong> for this date.${o.note?" "+esc(o.note):""}</div>`;
   else if (o.note) body += `<div class="note"><strong>Note.</strong> ${esc(o.note)}</div>`;
   if (o.src === "res" && o.res){
     const r = o.res;
-    body += `<div class="note">Part of a checkout running <span class="mono">${esc(shortDate(r.dateStart))} – ${esc(shortDate(r.dateEnd))}</span>,
+    body += `<div class="note">Part of a reservation running <span class="mono">${esc(shortDate(r.dateStart))} – ${esc(shortDate(r.dateEnd))}</span>,
       <span class="mono">${r.allDay ? "all day" : `${fmt12(toMin(r.timeStart))} – ${fmt12(toMin(r.timeEnd))}`}</span>,
       ${r.rooms.length} room${r.rooms.length>1?"s":""}${r.days&&r.days.length?", "+r.days.map(d=>DAYNAMES[d].slice(0,3)).join(" "):""}.</div>`;
   }
@@ -1054,7 +1060,7 @@ function openOccurrence(o){
     <div class="note" id="mScopeNote"></div>`;
   if (o.src === "res") body += `
     <div class="sec-t">Category</div>
-    <div class="field"><label for="mKind">Applies to every date in this checkout</label>
+    <div class="field"><label for="mKind">Applies to every date in this reservation</label>
       <select id="mKind">${BOOKABLE.map(k=>
         `<option value="${k}"${o.kind===k?" selected":""}>${KINDLABEL[k]}</option>`).join("")}</select></div>`;
   body += `
@@ -1063,6 +1069,10 @@ function openOccurrence(o){
       <div class="field"><label for="mStart">New start</label><input type="time" id="mStart" value="${toHM(o.allDay?8*60:o.start)}"></div>
       <div class="field"><label for="mEnd">New end</label><input type="time" id="mEnd" value="${toHM(o.allDay?17*60:o.end)}"></div>
     </div>
+    <div class="field"><label for="mTitle">Name</label>
+      <input type="text" id="mTitle" value="${esc(o.title)}"></div>
+    <div class="field"><label for="mPerson">${o.src==="res"?"Reserved by":"Instructor"}</label>
+      <input type="text" id="mPerson" value="${esc(o.person)}"></div>
     <div class="field"><label for="mRoom">Room</label><select id="mRoom">${
       ROOMS.map(r=>`<option${r===o.room?" selected":""}>${esc(r)}</option>`).join("")}</select></div>
     <div class="field"><label for="mNote">Note (shown on the block)</label>
@@ -1072,7 +1082,7 @@ function openOccurrence(o){
     ${o.cancelled ? `<button class="btn" id="restore">Restore</button>`
                   : `<button class="btn" id="cancelOcc">Cancel</button>`}
     ${o.ex ? `<button class="btn ghost" id="clearEx">Reset to master</button>` : ""}
-    ${o.src==="res" ? `<button class="btn ghost" id="delRes" style="margin-left:auto;color:var(--accent)">Delete whole checkout</button>`:""}`;
+    ${o.src==="res" ? `<button class="btn" id="editRes" style="margin-left:auto">Edit reservation</button>`:""}`;
   openDrawer(o.title, `${KINDLABEL[o.kind]} · ${longDate(o.date)}`, body, foot);
 
   const $ = id => document.getElementById(id);
@@ -1123,8 +1133,10 @@ function openOccurrence(o){
   };
   $("saveMove").onclick = async ()=>{
     const st = $("mStart").value, en = $("mEnd").value, rm = $("mRoom").value, n = $("mNote").value.trim();
+    const ti = $("mTitle").value.trim(), pe = $("mPerson").value.trim();
     if (toMin(en) <= toMin(st)) return flash("End time must be after the start time.");
-    const changed = (st!==toHM(o.origStart) || en!==toHM(o.origEnd) || rm!==o.origRoom);
+    const renamed = (ti !== o.origTitle || pe !== o.origPerson);
+    const changed = (st!==toHM(o.origStart) || en!==toHM(o.origEnd) || rm!==o.origRoom) || renamed;
 
     // Editing a whole checkout is a change to the checkout itself, not a pile
     // of per-date exceptions; "this and later" splits it in two, as Outlook does.
@@ -1146,7 +1158,8 @@ function openOccurrence(o){
     }
 
     const ok = await applyToDates((date, id) => writeException(id, date, {
-      status: changed ? "moved" : (n ? "noted" : "clear"), room:rm, start:st, end:en, note:n }),
+      status: changed ? "moved" : (n ? "noted" : "clear"), room:rm, start:st, end:en, note:n,
+      title: ti, person: pe }),
       changed ? "Change" : "Add a note to");
     if (ok) closeDrawer();
   };
@@ -1161,34 +1174,37 @@ function openOccurrence(o){
   };
   if ($("restore")) $("restore").onclick = undo;
   if ($("clearEx")) $("clearEx").onclick = undo;
-  if ($("delRes")) $("delRes").onclick = async ()=>{
-    if (!confirm("Delete this checkout for every date in its range?")) return;
-    await state.db.doc("reservations/"+o.resId).delete(); closeDrawer();
+  if ($("editRes")) $("editRes").onclick = ()=>{
+    const r = o.res;
+    openNew({title:r.title, person:r.person, kind:r.kind, rooms:r.rooms, days:r.days,
+             from:r.dateStart, to:r.dateEnd, start:r.timeStart, end:r.timeEnd,
+             note:r.note, allDay:r.allDay, at:r.at}, o.resId);
   };
 }
 
-function openNew(seed){
+function openNew(seed, editId){
   seed = seed || {};
   const d0 = seed.date || state.date;
+  const editing = !!editId;
   const body = `
     <div class="field"><label for="fTitle">What is this for</label>
       <input type="text" id="fTitle" placeholder="e.g. Honor Band auditions" value="${esc(seed.title||"")}"></div>
     <div class="row">
-      <div class="field"><label for="fPerson">Requested by</label>
-        <input type="text" id="fPerson" placeholder="Name"></div>
+      <div class="field"><label for="fPerson">Reserved by</label>
+        <input type="text" id="fPerson" placeholder="Name" value="${esc(seed.person||"")}"></div>
       <div class="field"><label for="fKind">Category</label>
         <select id="fKind">${BOOKABLE.map(k=>
           `<option value="${k}"${seed.kind===k?" selected":""}>${KINDLABEL[k]}${k==="blocked"?" / unavailable":""}</option>`).join("")}</select></div>
     </div>
     <div class="sec-t">Rooms</div>
     <div class="chips" id="fRooms">${ROOMS.map(r=>
-      `<button type="button" class="chip" data-r="${esc(r)}" aria-pressed="${seed.room===r?"true":"false"}">${esc(r.split(" ")[0])}</button>`).join("")}</div>
+      `<button type="button" class="chip" data-r="${esc(r)}" aria-pressed="${(seed.rooms||[seed.room]).includes(r)?"true":"false"}">${esc(r.split(" ")[0])}</button>`).join("")}</div>
     <div class="chips" style="margin-top:2px">
       <button type="button" class="btn ghost" id="allRooms" style="font-size:12px;padding:3px 8px">Select all</button>
       <button type="button" class="btn ghost" id="noRooms" style="font-size:12px;padding:3px 8px">Clear</button></div>
     <div class="sec-t">Dates</div>
     <div class="row">
-      <div class="field"><label for="fFrom">From</label><input type="date" id="fFrom" value="${d0}"></div>
+      <div class="field"><label for="fFrom">From</label><input type="date" id="fFrom" value="${seed.from||d0}"></div>
       <div class="field"><label for="fTo">Through</label><input type="date" id="fTo" value="${seed.to||d0}"></div>
     </div>
     <div class="field"><label>Only on these days <span style="text-transform:none;letter-spacing:0;font-weight:500">(leave blank for every day in the range)</span></label>
@@ -1202,10 +1218,13 @@ function openNew(seed){
       <div class="field"><label for="fEnd">End</label><input type="time" id="fEnd" value="${seed.end||"17:00"}"></div>
     </div>
     <div class="field"><label for="fNote">Note</label>
-      <input type="text" id="fNote" placeholder="Anything the department should know"></div>
+      <input type="text" id="fNote" placeholder="Anything the department should know" value="${esc(seed.note||"")}"></div>
     <div id="fConflict"></div>`;
-  openDrawer("Check out rooms", "Reserve or block rooms across a date range",
-    body, `<button class="btn primary" id="fSave">Check out</button><button class="btn ghost" id="fCancel">Cancel</button>`);
+  openDrawer(editing ? "Edit reservation" : "Reserve a room",
+    editing ? "Changes apply to every date in this reservation" : "Hold rooms across a date range",
+    body, `<button class="btn primary" id="fSave">${editing?"Save changes":"Reserve"}</button>` +
+          `<button class="btn ghost" id="fCancel">Cancel</button>` +
+          (editing ? `<button class="btn ghost" id="fDelete" style="margin-left:auto;color:var(--accent)">Delete</button>` : ``));
 
   const $ = id => document.getElementById(id);
   const roomBtns = [...$("fRooms").querySelectorAll(".chip")];
@@ -1221,7 +1240,7 @@ function openNew(seed){
   $("fCancel").onclick = closeDrawer;
 
   const read = () => ({
-    title: $("fTitle").value.trim() || "Checkout",
+    title: $("fTitle").value.trim() || "Reservation",
     person: $("fPerson").value.trim(),
     kind: $("fKind").value,
     rooms: roomBtns.filter(b=>b.getAttribute("aria-pressed")==="true").map(b=>b.dataset.r),
@@ -1236,7 +1255,7 @@ function openNew(seed){
   function preview(){
     const r = read(), box = $("fConflict");
     if (!r.rooms.length || !r.dateStart || !r.dateEnd) { box.innerHTML=""; return; }
-    const hits = findConflicts(r);
+    const hits = findConflicts(r, editId);
     box.innerHTML = hits.length
       ? `<div class="note warn"><strong>${hits.length} overlap${hits.length>1?"s":""}</strong> with what is already scheduled.
          You can still check out — the grid will show them side by side.
@@ -1252,16 +1271,27 @@ function openNew(seed){
     if (!r.dateStart || !r.dateEnd) return flash("Set a start and end date.");
     if (r.dateEnd < r.dateStart) return flash("The end date is before the start date.");
     if (!r.allDay && toMin(r.timeEnd) <= toMin(r.timeStart)) return flash("End time must be after the start time.");
-    await state.db.collection("reservations").add(r);
+    if (editing){
+      r.at = seed.at || Date.now();
+      await state.db.doc("reservations/"+editId).set(r);
+    } else {
+      await state.db.collection("reservations").add(r);
+    }
     state.date = r.dateStart; closeDrawer(); render();
   };
+  if (editing) $("fDelete").onclick = async ()=>{
+    if (!confirm("Delete this reservation for every date in its range?")) return;
+    await state.db.doc("reservations/"+editId).delete();
+    closeDrawer();
+  };
 }
-function findConflicts(r){
+function findConflicts(r, ignoreResId){
   const out=[]; let d=r.dateStart, guard=0;
   while (d <= r.dateEnd && guard++ < 400){
     if (!r.days.length || r.days.includes(dow(d))){
       for (const o of occurrencesOn(d)){
         if (o.cancelled || !r.rooms.includes(o.room)) continue;
+        if (ignoreResId && o.resId === ignoreResId) continue;   // do not clash with itself
         if (o.start < toMin(r.timeEnd) && toMin(r.timeStart) < o.end)
           out.push({date:d, room:o.room, title:o.title, start:o.start, end:o.end, allDay:o.allDay});
       }
@@ -1383,7 +1413,7 @@ function openFind(seed){
           <span>${[...r.clashes.entries()].slice(0,2).map(([t,c])=>esc(t)+(c>1?` \u00d7${c}`:"")).join(", ")}</span></span>
         </button>`).join("")}</div>` : ``}
       ${state.canEdit && always.length ? `<div style="margin-top:14px">
-        <button class="btn primary" id="qBook">Check out a free room</button></div>` : ``}`;
+        <button class="btn primary" id="qBook">Reserve a free room</button></div>` : ``}`;
 
     drawer.querySelectorAll("[data-jump]").forEach(b => b.onclick = ()=>{
       state.date = b.dataset.jump; state.view = "day"; state.hidden.delete(b.dataset.room);
@@ -1434,7 +1464,7 @@ function openRooms(){
       return `<div class="item" style="cursor:default">
         <span class="bar-c" style="background:var(--accent)"></span>
         <span class="m"><b>${esc(r.name)}</b>
-        <span>${used ? used+" checkout"+(used>1?"s":"") : "No checkouts"}</span></span>
+        <span>${used ? used+" reservation"+(used>1?"s":"") : "No reservations"}</span></span>
         <button class="btn ghost" data-del="${esc(id)}" style="font-size:12px;padding:3px 8px;color:var(--accent)">Remove</button>
       </div>`;}).join("")}</div>`
       : `<div class="empty">No rooms added yet. The ${MASTER_ROOMS.length} rooms below come from the master schedule.</div>`}
@@ -1477,7 +1507,7 @@ function openRooms(){
   drawer.querySelectorAll("[data-del]").forEach(b => b.onclick = async ()=>{
     const id = b.dataset.del, r = state.rooms.get(id);
     const used = r ? roomUsage(r.name) : 0;
-    if (used && !confirm(`${r.name} has ${used} checkout${used>1?"s":""}. Removing the room leaves them in place but they will stop showing in the grid. Remove it?`)) return;
+    if (used && !confirm(`${r.name} has ${used} reservation${used>1?"s":""}. Removing the room leaves them in place but they will stop showing in the grid. Remove it?`)) return;
     try { await state.db.doc("rooms/"+id).delete(); } catch(e){ return err("Could not remove that room."); }
     openRooms();
   });
@@ -1505,7 +1535,7 @@ function openChanges(){
       ${e.note?`<span>${esc(e.note)}</span>`:""}</span></button>`;
   }).join("")}</div>`
   : `<div class="empty">Nothing has been changed yet. The grid is showing the weekly master schedule exactly as it came from the spreadsheet.</div>`;
-  openDrawer("Changes and checkouts", `${rows.length} entr${rows.length===1?"y":"ies"} on top of the master schedule`,
+  openDrawer("Changes and reservations", `${rows.length} entr${rows.length===1?"y":"ies"} on top of the master schedule`,
     body, `<button class="btn ghost" id="cClose">Close</button>`);
   document.getElementById("cClose").onclick = closeDrawer;
   drawer.querySelectorAll("[data-goto]").forEach(el=>el.onclick=()=>{
@@ -1515,7 +1545,7 @@ function openChanges(){
 function baseTitle(baseId){
   if (String(baseId).startsWith("res:")){
     const r = state.reservations.get(String(baseId).slice(4));
-    return r ? r.title : "Checkout";
+    return r ? r.title : "Reservation";
   }
   const b = BASE.find(x=>x.id===baseId);
   return b ? `${b.title}${b.room?" · "+b.room.split(" ")[0]:""}` : baseId;
@@ -1534,6 +1564,8 @@ async function writeException(baseId, date, patch){
   const id = exKey(baseId,date);
   if (patch.status === "clear") return clearException(baseId,date);
   const doc = {baseId, date, status:patch.status, note:patch.note||"", at:Date.now()};
+  if (patch.title)  doc.title  = patch.title;
+  if (patch.person) doc.person = patch.person;
   if (patch.status === "moved"){ doc.room=patch.room; doc.start=patch.start; doc.end=patch.end; }
   try { await state.db.doc("exceptions/"+id).set(doc); }
   catch(err){ alert("That change could not be saved. If you were signed in, your session may have expired — sign in again and retry."); }
@@ -1744,7 +1776,7 @@ authBtn.onclick = async ()=>{
       cfg.supabaseUrl.includes("YOUR-PROJECT")){
     conn.textContent = "Not configured"; conn.classList.remove("live");
     role.textContent = "Master schedule only";
-    role.title = "Add your Supabase URL and key to config.js to turn on checkouts.";
+    role.title = "Add your Supabase URL and key to config.js to turn on reservations.";
     authBtn.classList.add("hidden");
     return;
   }

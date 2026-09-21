@@ -1,4 +1,4 @@
-# Room Checkout — LA Pierce College, Music
+# Room Reservations — LA Pierce College, Music
 
 Room scheduling for the music department. The weekly master schedule comes from
 the department's Class Schedule spreadsheet; on top of it, staff mark rooms out
@@ -73,7 +73,7 @@ date so you can see the conflict. Editors get a button straight through to the
 checkout form with the search already filled in. Hidden rooms are still
 searched, since hiding is only about your own view.
 
-**Checking out rooms.** *+ Check out rooms* → pick rooms, a category, a date
+**Reserving rooms.** *+ Reserve a Room* → pick rooms, a category, a date
 range, a time range, and optionally specific weekdays. Tick **All day** to hold the room for
 the whole day instead of naming times — it fills the room's column and counts as
 busy at any hour, so the room finder and the overlap warning both treat it as
@@ -84,8 +84,8 @@ from the block itself, and applies to every date in that checkout. Classes are
 not offered, since those come from the spreadsheet. Overlaps with existing classes are
 listed before saving; they don't block the checkout, they just warn.
 
-**Changing a lesson.** Click any block: cancel it, move it to another room or
-time, or leave a note. A repeating block asks what the change applies to, the
+**Changing a lesson.** Click any block to edit it: name, instructor, room, time
+and note are all editable, or cancel it outright. A repeating block asks what the change applies to, the
 way Outlook does:
 
 | | |
@@ -99,7 +99,11 @@ commit, and anything touching more than one date asks to confirm. A class the
 spreadsheet lists on two weekdays counts as one series, so cancelling MUSIC
 216-3 catches both its Tuesday and Thursday sittings.
 
-Editing a **checkout** across more than one date changes the checkout itself
+Clicking a reservation also offers **Edit reservation**, which reopens the
+booking form with everything filled in — name, category, who reserved it, rooms,
+dates, weekdays, all-day and times — and saves back to the same record.
+
+Editing a **reservation** across more than one date changes the reservation itself
 rather than stamping a pile of per-date exceptions — *This and later* splits it
 into two, exactly as Outlook does, leaving earlier dates alone. *Reset* undoes
 per-date changes at whatever scope is selected.
