@@ -292,6 +292,10 @@ input[type=text]::placeholder{color:var(--ink-3)}
 .item{background:var(--surface);padding:9px 11px;display:flex;gap:10px;align-items:flex-start;
   cursor:pointer;text-align:left;border:0;width:100%;font:inherit}
 .item:hover{background:var(--surface-2)}
+.item.off{opacity:.6}
+.item.off b{text-decoration:line-through}
+.item .as-btn{background:transparent;border:0;cursor:pointer;font:inherit;text-align:left;
+  color:inherit;padding:0}
 .item .bar-c{width:3px;align-self:stretch;border-radius:2px;flex:none}
 .item .m{flex:1;min-width:0}
 .item .m b{display:block;font-size:12.5px;font-weight:700}
@@ -686,6 +690,7 @@ function render(){
   for (const c of cols){
     let occ = occurrencesOn(c.date)
       .filter(o => c.rooms.includes(o.room))
+      .filter(o => !o.cancelled)      // freeing the room is the point; Changes keeps the record
       .filter(matchKind);
     if (searching) occ = occ.filter(matchQ);
     byCol.set(c.key, occ); all = all.concat(occ);
@@ -802,6 +807,7 @@ function paintSearchNote(){
 function visibleOn(date, rooms){
   return occurrencesOn(date)
     .filter(o => rooms.includes(o.room))
+    .filter(o => !o.cancelled)
     .filter(matchKind).filter(matchQ)
     .sort((a,b) => (b.allDay?0:1)-(a.allDay?0:1) || a.start-b.start);
 }
@@ -1123,8 +1129,19 @@ function openOccurrence(o){
   async function applyToDates(fn, verb){
     const list = targets();
     if (list.length > 1 && !confirm(`${verb} ${list.length} dates?`)) return false;
-    for (const x of list) await fn(x.date, x.srcId);
-    return true;
+    const btns = [...document.querySelectorAll("#dFoot .btn")];
+    btns.forEach(b => b.disabled = true);
+    try {
+      let done = 0;
+      for (const x of list){
+        await fn(x.date, x.srcId);
+        if (list.length > 3) flash(`${verb.toLowerCase()} ${++done} of ${list.length}…`);
+      }
+      return true;
+    } catch(e){
+      flash("Stopped partway — some dates were not saved. If you were signed in, your session may have expired.");
+      return false;
+    } finally { btns.forEach(b => b.disabled = false); }
   }
 
   if ($("mKind")) $("mKind").onchange = async ()=>{
@@ -1165,6 +1182,23 @@ function openOccurrence(o){
   };
   if ($("cancelOcc")) $("cancelOcc").onclick = async ()=>{
     const note = $("mNote").value.trim();
+    // Cancelling a whole reservation is one change to the reservation, not one
+    // row per date: instant instead of eighty round trips, and it leaves no
+    // cancelled remnants behind.
+    if (o.src === "res" && scope !== "one"){
+      const r = o.res, n = targets().length;
+      if (n > 1 && !confirm(`Cancel ${n} dates?`)) return;
+      try {
+        if (scope === "all"){
+          await state.db.doc("reservations/"+o.resId).set({...r, cancelled:true, note: note || r.note});
+        } else {
+          const dayBefore = addDays(o.date, -1);
+          if (dayBefore < r.dateStart) await state.db.doc("reservations/"+o.resId).set({...r, cancelled:true});
+          else await state.db.doc("reservations/"+o.resId).set({...r, dateEnd:dayBefore});
+        }
+      } catch(e){ return flash("Could not save. If you were signed in, your session may have expired."); }
+      closeDrawer(); return;
+    }
     const ok = await applyToDates((date, id) => writeException(id, date, {status:"cancelled", note}), "Cancel");
     if (ok) closeDrawer();
   };
@@ -1209,7 +1243,8 @@ function openNew(seed, editId){
     </div>
     <div class="field"><label>Only on these days <span style="text-transform:none;letter-spacing:0;font-weight:500">(leave blank for every day in the range)</span></label>
       <div class="chips" id="fDays">${[1,2,3,4,5,6,0].map(i=>
-        `<button type="button" class="chip wd" data-d="${i}" aria-pressed="${(seed.days||[]).includes(i)}">${DAYNAMES[i].slice(0,3)}</button>`).join("")}</div></div>
+        `<button type="button" class="chip wd" data-d="${i}" aria-pressed="${(seed.days||[]).includes(i)}">${DAYNAMES[i].slice(0,3)}</button>`).join("")}</div>
+      <div class="note" id="fSpan"></div></div>
     <div class="sec-t">Time</div>
     <label class="check"><input type="checkbox" id="fAllDay"${seed.allDay?" checked":""}>
       <span>All day &mdash; holds the room for the whole day</span></label>
@@ -1252,7 +1287,33 @@ function openNew(seed, editId){
     timeEnd:   $("fAllDay").checked ? "23:59" : $("fEnd").value,
     note: $("fNote").value.trim(), cancelled:false, at: Date.now()
   });
+  /* How many dates this actually covers. Leaving the weekdays blank means
+     every day, which is easy to do by accident on a long range. */
+  function countDates(r){
+    let n = 0, d = r.dateStart, guard = 0;
+    while (d <= r.dateEnd && guard++ < 500){
+      if (!r.days.length || r.days.includes(dow(d))) n++;
+      d = addDays(d, 1);
+    }
+    return n;
+  }
+  function paintSpan(){
+    const r = read(), box = $("fSpan");
+    if (!r.dateStart || !r.dateEnd || r.dateEnd < r.dateStart){ box.textContent = ""; return; }
+    const n = countDates(r);
+    const which = r.days.length
+      ? r.days.slice().sort().map(d => DAYNAMES[d].slice(0,3)).join(", ")
+      : "every day, weekends included";
+    const rooms = r.rooms.length === 1 ? r.rooms[0].split(" ")[0]
+      : r.rooms.length ? `${r.rooms.length} rooms` : "no room yet";
+    box.className = "note" + (n > 20 && !r.days.length ? " warn" : "");
+    box.innerHTML = `Holds <strong>${esc(rooms)}</strong> on <strong>${n} date${n===1?"":"s"}</strong>`
+      + ` &mdash; ${esc(which)}, ${esc(shortDate(r.dateStart))} to ${esc(shortDate(r.dateEnd))}.`
+      + (n > 20 && !r.days.length ? ` Pick weekdays above if you did not mean every day.` : ``);
+  }
+
   function preview(){
+    paintSpan();
     const r = read(), box = $("fConflict");
     if (!r.rooms.length || !r.dateStart || !r.dateEnd) { box.innerHTML=""; return; }
     const hits = findConflicts(r, editId);
@@ -1271,17 +1332,20 @@ function openNew(seed, editId){
     if (!r.dateStart || !r.dateEnd) return flash("Set a start and end date.");
     if (r.dateEnd < r.dateStart) return flash("The end date is before the start date.");
     if (!r.allDay && toMin(r.timeEnd) <= toMin(r.timeStart)) return flash("End time must be after the start time.");
-    if (editing){
-      r.at = seed.at || Date.now();
-      await state.db.doc("reservations/"+editId).set(r);
-    } else {
-      await state.db.collection("reservations").add(r);
-    }
+    try {
+      if (editing){
+        r.at = seed.at || Date.now();
+        await state.db.doc("reservations/"+editId).set(r);
+      } else {
+        await state.db.collection("reservations").add(r);
+      }
+    } catch(e){ return flash("Could not save. If you were signed in, your session may have expired."); }
     state.date = r.dateStart; closeDrawer(); render();
   };
   if (editing) $("fDelete").onclick = async ()=>{
     if (!confirm("Delete this reservation for every date in its range?")) return;
-    await state.db.doc("reservations/"+editId).delete();
+    try { await state.db.doc("reservations/"+editId).delete(); }
+    catch(e){ return flash("Could not delete. If you were signed in, your session may have expired."); }
     closeDrawer();
   };
 }
@@ -1515,20 +1579,23 @@ function openRooms(){
 
 function openChanges(){
   const rows = [];
-  for (const [id,r] of state.reservations) if(!r.cancelled) rows.push({t:"res", id, r, sort:r.dateStart});
+  for (const [id,r] of state.reservations) rows.push({t:"res", id, r, sort:r.dateStart});
   for (const [k,e] of state.exceptions) rows.push({t:"ex", id:k, e, sort:e.date});
   rows.sort((a,b)=> (a.sort<b.sort?-1:a.sort>b.sort?1:0));
   const body = rows.length ? `<div class="list">${rows.map(row=>{
     if (row.t==="res"){ const r=row.r;
-      return `<button class="item" data-goto="${r.dateStart}">
-        <span class="bar-c" style="background:var(--${r.kind==="blocked"?"k-blocked":"k-checkout"})"></span>
-        <span class="m"><b>${esc(r.title)}${r.kind==="blocked"?" — blocked":""}</b>
+      return `<div class="item${r.cancelled?" off":""}">
+        <span class="bar-c" style="background:var(--${r.cancelled?"line-2":r.kind==="blocked"?"k-blocked":"k-checkout"})"></span>
+        <button class="m as-btn" data-goto="${r.dateStart}" data-src="res:${esc(row.id)}">
+        <b>${r.cancelled?"Cancelled — ":""}${esc(r.title)}${r.kind==="blocked"?" — blocked":""}</b>
         <span>${esc(shortDate(r.dateStart))}–${esc(shortDate(r.dateEnd))} · ${r.allDay ? "all day" : `${fmt12(toMin(r.timeStart))}–${fmt12(toMin(r.timeEnd))}`} · ${r.rooms.map(x=>x.split(" ")[0]).join(", ")}</span>
-        ${r.person?`<span>${esc(r.person)}</span>`:""}</span></button>`;
+        ${r.person?`<span>${esc(r.person)}</span>`:""}</button>
+        ${r.cancelled && state.canEdit ? `<button class="btn ghost restore-res" data-res="${esc(row.id)}"
+          style="font-size:12px;padding:3px 8px;align-self:center">Restore</button>` : ``}</div>`;
     }
     const e=row.e, lbl = e.status==="cancelled"?"Cancelled":e.status==="moved"?"Changed":"Note";
     const name = baseTitle(e.baseId);
-    return `<button class="item" data-goto="${e.date}">
+    return `<button class="item" data-goto="${e.date}" data-src="${esc(e.baseId||"")}">
       <span class="bar-c" style="background:var(--${e.status==="cancelled"?"line-2":"warn"})"></span>
       <span class="m"><b>${lbl} — ${esc(name)}</b>
       <span>${esc(shortDate(e.date))}${e.room?" · "+esc(e.room.split(" ")[0]):""}${e.start?" · "+fmt12(toMin(e.start))+"–"+fmt12(toMin(e.end)):""}</span>
@@ -1538,8 +1605,18 @@ function openChanges(){
   openDrawer("Changes and reservations", `${rows.length} entr${rows.length===1?"y":"ies"} on top of the master schedule`,
     body, `<button class="btn ghost" id="cClose">Close</button>`);
   document.getElementById("cClose").onclick = closeDrawer;
+  drawer.querySelectorAll(".restore-res").forEach(b => b.onclick = async ()=>{
+    const r = state.reservations.get(b.dataset.res);
+    try { await state.db.doc("reservations/"+b.dataset.res).set({...r, cancelled:false}); }
+    catch(e){ return flash("Could not restore. If you were signed in, your session may have expired."); }
+    openChanges();
+  });
   drawer.querySelectorAll("[data-goto]").forEach(el=>el.onclick=()=>{
-    state.date = el.dataset.goto; state.view="day"; syncView(); closeDrawer(); render();
+    state.date = el.dataset.goto; state.view="day"; syncView(); render();
+    // a cancelled block is no longer drawn, so open it from here or it is unreachable
+    const want = el.dataset.src;
+    const hit = want && occurrencesOn(state.date).find(o => o.srcId === want);
+    if (hit) openOccurrence(hit); else closeDrawer();
   });
 }
 function baseTitle(baseId){
@@ -1567,13 +1644,11 @@ async function writeException(baseId, date, patch){
   if (patch.title)  doc.title  = patch.title;
   if (patch.person) doc.person = patch.person;
   if (patch.status === "moved"){ doc.room=patch.room; doc.start=patch.start; doc.end=patch.end; }
-  try { await state.db.doc("exceptions/"+id).set(doc); }
-  catch(err){ alert("That change could not be saved. If you were signed in, your session may have expired — sign in again and retry."); }
+  await state.db.doc("exceptions/"+id).set(doc);
 }
 async function clearException(baseId, date){
   if (!state.db) return;
-  try { await state.db.doc("exceptions/"+exKey(baseId,date)).delete(); }
-  catch(err){ alert("That change could not be saved. If you were signed in, your session may have expired — sign in again and retry."); }
+  await state.db.doc("exceptions/"+exKey(baseId,date)).delete();
 }
 
 /* ---------- export ---------- */

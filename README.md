@@ -74,7 +74,9 @@ checkout form with the search already filled in. Hidden rooms are still
 searched, since hiding is only about your own view.
 
 **Reserving rooms.** *+ Reserve a Room* → pick rooms, a category, a date
-range, a time range, and optionally specific weekdays. Tick **All day** to hold the room for
+range, a time range, and optionally specific weekdays. **Leaving the weekdays blank books
+every day, weekends included** — the form says how many dates that is before you
+save, and warns when a long range has no weekdays picked. Tick **All day** to hold the room for
 the whole day instead of naming times — it fills the room's column and counts as
 busy at any hour, so the room finder and the overlap warning both treat it as
 taken. The category sets the
@@ -85,7 +87,9 @@ not offered, since those come from the spreadsheet. Overlaps with existing class
 listed before saving; they don't block the checkout, they just warn.
 
 **Changing a lesson.** Click any block to edit it: name, instructor, room, time
-and note are all editable, or cancel it outright. A repeating block asks what the change applies to, the
+and note are all editable, or cancel it outright. A cancelled block leaves the
+grid entirely — the room is free, so it should look free — and stays in
+*Changes*, struck through, where a cancelled reservation can be restored. A repeating block asks what the change applies to, the
 way Outlook does:
 
 | | |
