@@ -112,8 +112,19 @@ rather than stamping a pile of per-date exceptions — *This and later* splits i
 into two, exactly as Outlook does, leaving earlier dates alone. *Reset* undoes
 per-date changes at whatever scope is selected.
 
-**Changes panel.** Everything layered on top of the master, in date order. Click
-an entry to jump to it.
+**Changes panel.** Every record layered on top of the master schedule, in date
+order — nothing is ever dropped from here. Three chips narrow it, and they
+combine:
+
+| chip | shows |
+|---|---|
+| **Reservations** | bookings currently standing |
+| **Changes** | lessons moved, renamed or annotated |
+| **Cancellations** | cancelled reservations and cancelled lessons |
+
+Each chip carries its count, the heading reports "2 of 6" while filtered, and
+*Show all* clears. Clicking an entry opens that booking — which is how you reach
+a cancelled one, since it is no longer drawn on the grid.
 
 **Month view.** *Month* has three modes, because twenty rooms across thirty days
 will not fit on a screen and each mode picks a different thing to give up:

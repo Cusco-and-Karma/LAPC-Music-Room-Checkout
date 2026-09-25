@@ -530,7 +530,7 @@ const roomTag = r => (r.match(/^3414-([A-I])\b/)||[,""])[1];
 const state = {
   date: iso(new Date()), view:"day", weekRoom: ROOMS[0], q:"",
   collapsePractice: true, kinds: new Set(), rooms: new Map(), hidden: new Set(),
-  monthMode: "room",
+  monthMode: "room", changeKinds: new Set(),
   canEdit:false, db:null, downloads:null,
   exceptions:new Map(), reservations:new Map(), sel:null
 };
@@ -1577,12 +1577,31 @@ function openRooms(){
   });
 }
 
+/* Every record stays; the chips decide which are listed. */
+const CHANGEKINDS = [["reservation","Reservations"],["change","Changes"],["cancelled","Cancellations"]];
+const changeKindOf = row =>
+  row.t === "res" ? (row.r.cancelled ? "cancelled" : "reservation")
+                  : (row.e.status === "cancelled" ? "cancelled" : "change");
+
 function openChanges(){
-  const rows = [];
-  for (const [id,r] of state.reservations) rows.push({t:"res", id, r, sort:r.dateStart});
-  for (const [k,e] of state.exceptions) rows.push({t:"ex", id:k, e, sort:e.date});
-  rows.sort((a,b)=> (a.sort<b.sort?-1:a.sort>b.sort?1:0));
-  const body = rows.length ? `<div class="list">${rows.map(row=>{
+  const all = [];
+  for (const [id,r] of state.reservations) all.push({t:"res", id, r, sort:r.dateStart});
+  for (const [k,e] of state.exceptions) all.push({t:"ex", id:k, e, sort:e.date});
+  all.sort((a,b)=> (a.sort<b.sort?-1:a.sort>b.sort?1:0));
+  all.forEach(r => r.ck = changeKindOf(r));
+
+  const counts = {};
+  for (const [k] of CHANGEKINDS) counts[k] = all.filter(r => r.ck === k).length;
+  const sel = state.changeKinds;
+  const rows = sel.size ? all.filter(r => sel.has(r.ck)) : all;
+
+  const chips = `<div class="chips" id="cFilter">${CHANGEKINDS.map(([k,lbl])=>
+      `<button type="button" class="chip wd" data-ck="${k}" aria-pressed="${sel.has(k)}"
+        ${counts[k]?"":"disabled style=opacity:.4"}>${lbl} ${counts[k]}</button>`).join("")}
+    ${sel.size ? `<button type="button" class="btn ghost" id="cAll"
+      style="font-size:12px;padding:3px 8px">Show all</button>` : ``}</div>`;
+
+  const body = chips + (rows.length ? `<div class="list">${rows.map(row=>{
     if (row.t==="res"){ const r=row.r;
       return `<div class="item${r.cancelled?" off":""}">
         <span class="bar-c" style="background:var(--${r.cancelled?"line-2":r.kind==="blocked"?"k-blocked":"k-checkout"})"></span>
@@ -1601,10 +1620,22 @@ function openChanges(){
       <span>${esc(shortDate(e.date))}${e.room?" · "+esc(e.room.split(" ")[0]):""}${e.start?" · "+fmt12(toMin(e.start))+"–"+fmt12(toMin(e.end)):""}</span>
       ${e.note?`<span>${esc(e.note)}</span>`:""}</span></button>`;
   }).join("")}</div>`
-  : `<div class="empty">Nothing has been changed yet. The grid is showing the weekly master schedule exactly as it came from the spreadsheet.</div>`;
-  openDrawer("Changes and reservations", `${rows.length} entr${rows.length===1?"y":"ies"} on top of the master schedule`,
+  : all.length
+  ? `<div class="empty">No ${sel.size===1?CHANGEKINDS.find(c=>c[0]===[...sel][0])[1].toLowerCase():"matching entries"} to show. Choose another filter, or Show all.</div>`
+  : `<div class="empty">Nothing has been changed yet. The grid is showing the weekly master schedule exactly as it came from the spreadsheet.</div>`);
+
+  const shown = sel.size ? `${rows.length} of ${all.length}` : `${all.length}`;
+  openDrawer("Changes and reservations",
+    `${shown} entr${(sel.size?rows.length:all.length)===1?"y":"ies"} on top of the master schedule`,
     body, `<button class="btn ghost" id="cClose">Close</button>`);
   document.getElementById("cClose").onclick = closeDrawer;
+  drawer.querySelectorAll("[data-ck]").forEach(b => b.onclick = ()=>{
+    const k = b.dataset.ck;
+    sel.has(k) ? sel.delete(k) : sel.add(k);
+    openChanges();
+  });
+  const cAll = document.getElementById("cAll");
+  if (cAll) cAll.onclick = ()=>{ sel.clear(); openChanges(); };
   drawer.querySelectorAll(".restore-res").forEach(b => b.onclick = async ()=>{
     const r = state.reservations.get(b.dataset.res);
     try { await state.db.doc("reservations/"+b.dataset.res).set({...r, cancelled:false}); }
