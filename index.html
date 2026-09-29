@@ -504,8 +504,9 @@ const KINDLABEL = {class:"Class",amp:"AMP lesson",accomp:"Accompanist",tutoring:
 const KINDVAR = {class:"--k-class",amp:"--k-amp",accomp:"--k-accomp",tutoring:"--k-tutoring",
   office:"--k-office",encore:"--k-encore",event:"--k-event",checkout:"--k-checkout",
   blocked:"--k-blocked"};
-// Categories a person can pick when booking.
-const BOOKABLE = ["checkout","class","event","tutoring","amp","accomp","office","encore","blocked"];
+// Categories a person can pick when booking, in the same order as the colour
+// key along the bottom - taken from it, so the two cannot drift apart.
+const BOOKABLE = Object.keys(KINDLABEL);
 
 /* ---------- time + date helpers ---------- */
 const pad = n => String(n).padStart(2,"0");
@@ -1215,7 +1216,8 @@ function openOccurrence(o){
 }
 
 function openNew(seed, editId){
-  seed = seed || {};
+  seed = Object.assign({}, seed || {});
+  if (!seed.kind) seed.kind = "checkout";   // list starts with Class; keep the old default
   const d0 = seed.date || state.date;
   const editing = !!editId;
   const body = `
