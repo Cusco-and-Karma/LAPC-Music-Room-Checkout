@@ -504,9 +504,8 @@ const KINDLABEL = {class:"Class",amp:"AMP lesson",accomp:"Accompanist",tutoring:
 const KINDVAR = {class:"--k-class",amp:"--k-amp",accomp:"--k-accomp",tutoring:"--k-tutoring",
   office:"--k-office",encore:"--k-encore",event:"--k-event",checkout:"--k-checkout",
   blocked:"--k-blocked"};
-// Categories a person can pick when booking. Classes come from the spreadsheet,
-// so they are not offered here.
-const BOOKABLE = ["checkout","event","tutoring","amp","accomp","office","encore","blocked"];
+// Categories a person can pick when booking.
+const BOOKABLE = ["checkout","class","event","tutoring","amp","accomp","office","encore","blocked"];
 
 /* ---------- time + date helpers ---------- */
 const pad = n => String(n).padStart(2,"0");
@@ -595,7 +594,7 @@ function occurrencesOn(date){
     const ex = state.exceptions.get(exKey("res:"+id,date));
     for (const room of (r.rooms||[])){
       const o = { srcId:"res:"+id, resId:id, src:"res", date, kind:r.kind||"checkout", room,
-        start:toMin(r.timeStart), end:toMin(r.timeEnd), code:"", title:r.title||"Reservation",
+        start:toMin(r.timeStart), end:toMin(r.timeEnd), code:r.code||"", title:r.title||"Reservation",
         person:r.person||"", cancelled:false, moved:false, note:r.note||"", dateNote:"",
         allDay: !!r.allDay, ex:ex||null,
         origRoom:room, origStart:toMin(r.timeStart), origEnd:toMin(r.timeEnd),
@@ -735,7 +734,7 @@ function render(){
       const top = o.allDay ? y(lo) : y(o.start);
       const h = o.allDay ? (hi-lo)*ppm : Math.max(15,(o.end-o.start)*ppm-2);
       const w = 100/L.of, left = L.idx*w;
-      const cls = ["ev"]; if(o.cancelled)cls.push("cancelled"); if(o.moved)cls.push("moved");
+      const cls = ["ev"];
       if(h<26)cls.push("tiny"); else if(h<40)cls.push("short");
       if(L.of>1)cls.push("narrow");
       // escape each part, not the joined string - the separator is real markup
@@ -747,8 +746,7 @@ function render(){
         <div class="t">${o.allDay ? "All day" : `${fmt12(o.start)} &ndash; ${fmt12(o.end)}`}</div>
         <div class="n">${tag}${esc(o.title)}</div>
         ${sub?`<div class="s">${sub}</div>`:``}
-        ${o.cancelled?`<span class="flag cx">Cancelled</span>`:o.moved?`<span class="flag">Changed</span>`:
-          o.dateNote?`<span class="flag">Note</span>`:``}
+        ${o.dateNote && !o.moved ? `<span class="flag">Note</span>` : ``}
       </button>`;
     });
     html += `</div>`;
@@ -1042,7 +1040,7 @@ function openOccurrence(o){
       <dt>Time</dt><dd class="mono">${when}</dd>
       <dt>Date</dt><dd>${esc(longDate(o.date))}</dd>
       ${o.code?`<dt>Course</dt><dd class="mono">${esc(o.code)}</dd>`:""}
-      ${o.person?`<dt>${o.src==="res"?"Reserved by":"Instructor"}</dt><dd>${esc(o.person)}</dd>`:""}
+      ${o.person?`<dt>${o.src==="res"&&o.kind!=="class"?"Reserved by":"Instructor"}</dt><dd>${esc(o.person)}</dd>`:""}
       ${orig}
     </dl>`;
   if (o.cancelled) body += `<div class="note warn"><strong>Cancelled</strong> for this date.${o.note?" "+esc(o.note):""}</div>`;
@@ -1077,7 +1075,7 @@ function openOccurrence(o){
     </div>
     <div class="field"><label for="mTitle">Name</label>
       <input type="text" id="mTitle" value="${esc(o.title)}"></div>
-    <div class="field"><label for="mPerson">${o.src==="res"?"Reserved by":"Instructor"}</label>
+    <div class="field"><label for="mPerson">${o.src==="res"&&o.kind!=="class"?"Reserved by":"Instructor"}</label>
       <input type="text" id="mPerson" value="${esc(o.person)}"></div>
     <div class="field"><label for="mRoom">Room</label><select id="mRoom">${
       ROOMS.map(r=>`<option${r===o.room?" selected":""}>${esc(r)}</option>`).join("")}</select></div>
@@ -1210,7 +1208,7 @@ function openOccurrence(o){
   if ($("clearEx")) $("clearEx").onclick = undo;
   if ($("editRes")) $("editRes").onclick = ()=>{
     const r = o.res;
-    openNew({title:r.title, person:r.person, kind:r.kind, rooms:r.rooms, days:r.days,
+    openNew({title:r.title, person:r.person, kind:r.kind, code:r.code, rooms:r.rooms, days:r.days,
              from:r.dateStart, to:r.dateEnd, start:r.timeStart, end:r.timeEnd,
              note:r.note, allDay:r.allDay, at:r.at}, o.resId);
   };
@@ -1223,8 +1221,11 @@ function openNew(seed, editId){
   const body = `
     <div class="field"><label for="fTitle">What is this for</label>
       <input type="text" id="fTitle" placeholder="e.g. Honor Band auditions" value="${esc(seed.title||"")}"></div>
+    <div class="field${seed.kind==="class"?"":" hidden"}" id="fCodeWrap"><label for="fCode">Course number</label>
+      <input type="text" id="fCode" placeholder="MUSIC 216-3" value="${esc(seed.code||"")}"
+        autocapitalize="characters" autocorrect="off" spellcheck="false"></div>
     <div class="row">
-      <div class="field"><label for="fPerson">Reserved by</label>
+      <div class="field"><label for="fPerson" id="fPersonLbl">${seed.kind==="class"?"Instructor":"Reserved by"}</label>
         <input type="text" id="fPerson" placeholder="Name" value="${esc(seed.person||"")}"></div>
       <div class="field"><label for="fKind">Category</label>
         <select id="fKind">${BOOKABLE.map(k=>
@@ -1270,6 +1271,12 @@ function openNew(seed, editId){
   $("allRooms").onclick = ()=>{roomBtns.forEach(b=>b.setAttribute("aria-pressed","true"));preview();};
   $("noRooms").onclick  = ()=>{roomBtns.forEach(b=>b.setAttribute("aria-pressed","false"));preview();};
   ["fFrom","fTo","fStart","fEnd"].forEach(id=>$(id).onchange = preview);
+  const syncKind = ()=>{
+    const isClass = $("fKind").value === "class";
+    $("fCodeWrap").classList.toggle("hidden", !isClass);
+    $("fPersonLbl").textContent = isClass ? "Instructor" : "Reserved by";
+  };
+  $("fKind").onchange = syncKind;
   const syncAllDay = ()=>{ $("fTimes").classList.toggle("hidden", $("fAllDay").checked); preview(); };
   $("fAllDay").onchange = syncAllDay;
   $("fCancel").onclick = closeDrawer;
@@ -1278,6 +1285,7 @@ function openNew(seed, editId){
     title: $("fTitle").value.trim() || "Reservation",
     person: $("fPerson").value.trim(),
     kind: $("fKind").value,
+    code: $("fKind").value === "class" ? $("fCode").value.trim() : "",
     rooms: roomBtns.filter(b=>b.getAttribute("aria-pressed")==="true").map(b=>b.dataset.r),
     days: dayBtns.filter(b=>b.getAttribute("aria-pressed")==="true").map(b=>+b.dataset.d),
     dateStart: $("fFrom").value, dateEnd: $("fTo").value,
@@ -1301,6 +1309,14 @@ function openNew(seed, editId){
     const r = read(), box = $("fSpan");
     if (!r.dateStart || !r.dateEnd || r.dateEnd < r.dateStart){ box.textContent = ""; return; }
     const n = countDates(r);
+    const oneDay = r.dateStart === r.dateEnd;
+    if (oneDay){
+      const rm = r.rooms.length === 1 ? r.rooms[0].split(" ")[0]
+        : r.rooms.length ? `${r.rooms.length} rooms` : "no room yet";
+      box.className = "note";
+      box.innerHTML = `Holds <strong>${esc(rm)}</strong> on <strong>${esc(longDate(r.dateStart))}</strong>.`;
+      return;
+    }
     const which = r.days.length
       ? r.days.slice().sort().map(d => DAYNAMES[d].slice(0,3)).join(", ")
       : "every day, weekends included";

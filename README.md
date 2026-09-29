@@ -80,16 +80,20 @@ save, and warns when a long range has no weekdays picked. Tick **All day** to ho
 the whole day instead of naming times — it fills the room's column and counts as
 busy at any hour, so the room finder and the overlap warning both treat it as
 taken. The category sets the
-block's colour and lets people filter by it: checkout, event, tutoring, AMP
-lesson, accompanist, office hours, Encore, or blocked. It can be changed later
-from the block itself, and applies to every date in that checkout. Classes are
-not offered, since those come from the spreadsheet. Overlaps with existing classes are
+block's colour and lets people filter by it: checkout, class, event, tutoring,
+AMP lesson, accompanist, office hours, Encore, or blocked. Choosing **Class**
+adds a course number field (`MUSIC 216-3`), shown on the block and found by the
+search box just like a spreadsheet class — useful for a makeup session or a
+section added mid-term. Reservations live in the database, so a class booked
+here survives a new term's import. Overlaps with existing classes are
 listed before saving; they don't block the checkout, they just warn.
 
 **Changing a lesson.** Click any block to edit it: name, instructor, room, time
 and note are all editable, or cancel it outright. A cancelled block leaves the
 grid entirely — the room is free, so it should look free — and stays in
-*Changes*, struck through, where a cancelled reservation can be restored. A repeating block asks what the change applies to, the
+*Changes*, struck through, where a cancelled reservation can be restored. A
+moved or renamed lesson simply shows at its new time with no marker; what it
+was before is in *Changes* and in the block's own panel. A repeating block asks what the change applies to, the
 way Outlook does:
 
 | | |
