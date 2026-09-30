@@ -293,6 +293,9 @@ input[type=text]::placeholder{color:var(--ink-3)}
   cursor:pointer;text-align:left;border:0;width:100%;font:inherit}
 .item:hover{background:var(--surface-2)}
 .item.off{opacity:.6}
+.item .m .stamp{font-family:var(--font-b);font-size:11px;color:var(--ink-3);margin-top:2px;
+  font-style:italic}
+.item.off .m .stamp{text-decoration:none}
 .item.off b{text-decoration:line-through}
 .item .as-btn{background:transparent;border:0;cursor:pointer;font:inherit;text-align:left;
   color:inherit;padding:0}
@@ -530,7 +533,7 @@ const roomTag = r => (r.match(/^3414-([A-I])\b/)||[,""])[1];
 const state = {
   date: iso(new Date()), view:"day", weekRoom: ROOMS[0], q:"",
   collapsePractice: true, kinds: new Set(), rooms: new Map(), hidden: new Set(),
-  monthMode: "room", changeKinds: new Set(),
+  monthMode: "room", changeKinds: new Set(), stamps: new Map(),
   canEdit:false, db:null, downloads:null,
   exceptions:new Map(), reservations:new Map(), sel:null
 };
@@ -1595,6 +1598,36 @@ function openRooms(){
   });
 }
 
+/* When something happened, in the viewer's own time zone. The year is shown
+   only when it is not this year. */
+function fmtStamp(t){
+  if (t == null || t === "") return "";
+  const d = typeof t === "number" ? new Date(t) : new Date(t);
+  if (isNaN(d)) return "";
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  const day = d.toLocaleDateString(undefined, sameYear
+    ? {month:"short", day:"numeric"} : {month:"short", day:"numeric", year:"numeric"});
+  const time = d.toLocaleTimeString(undefined, {hour:"numeric", minute:"2-digit"}).toLowerCase();
+  return `${day}, ${time}`;
+}
+const msOf = t => t == null ? NaN : (typeof t === "number" ? t : Date.parse(t));
+
+function changeStamp(row){
+  if (row.t === "res"){
+    const r = row.r, booked = r.at, last = state.stamps.get("res:"+row.id);
+    // a later write means it was edited, or cancelled, after it was booked
+    const later = !isNaN(msOf(last)) && !isNaN(msOf(booked)) && msOf(last) - msOf(booked) > 60000;
+    const parts = [];
+    if (booked != null) parts.push(`Booked ${fmtStamp(booked)}`);
+    if (later || booked == null) parts.push(`${r.cancelled ? "cancelled" : booked == null ? "Updated" : "edited"} ${fmtStamp(last)}`);
+    else if (r.cancelled && booked != null) parts.push("cancelled");
+    return parts.join(" \u00b7 ");
+  }
+  const e = row.e, when = state.stamps.get("ex:"+row.id) || e.at;
+  const verb = e.status === "cancelled" ? "Cancelled" : e.status === "moved" ? "Changed" : "Noted";
+  return when ? `${verb} ${fmtStamp(when)}` : "";
+}
+
 /* Every record stays; the chips decide which are listed. */
 const CHANGEKINDS = [["reservation","Reservations"],["change","Changes"],["cancelled","Cancellations"]];
 const changeKindOf = row =>
@@ -1626,7 +1659,8 @@ function openChanges(){
         <button class="m as-btn" data-goto="${r.dateStart}" data-src="res:${esc(row.id)}">
         <b>${r.cancelled?"Cancelled — ":""}${esc(r.title)}${r.kind==="blocked"?" — blocked":""}</b>
         <span>${esc(shortDate(r.dateStart))}–${esc(shortDate(r.dateEnd))} · ${r.allDay ? "all day" : `${fmt12(toMin(r.timeStart))}–${fmt12(toMin(r.timeEnd))}`} · ${r.rooms.map(x=>x.split(" ")[0]).join(", ")}</span>
-        ${r.person?`<span>${esc(r.person)}</span>`:""}</button>
+        ${r.person?`<span>${esc(r.person)}</span>`:""}
+        ${changeStamp(row)?`<span class="stamp">${esc(changeStamp(row))}</span>`:""}</button>
         ${r.cancelled && state.canEdit ? `<button class="btn ghost restore-res" data-res="${esc(row.id)}"
           style="font-size:12px;padding:3px 8px;align-self:center">Restore</button>` : ``}</div>`;
     }
@@ -1636,7 +1670,8 @@ function openChanges(){
       <span class="bar-c" style="background:var(--${e.status==="cancelled"?"line-2":"warn"})"></span>
       <span class="m"><b>${lbl} — ${esc(name)}</b>
       <span>${esc(shortDate(e.date))}${e.room?" · "+esc(e.room.split(" ")[0]):""}${e.start?" · "+fmt12(toMin(e.start))+"–"+fmt12(toMin(e.end)):""}</span>
-      ${e.note?`<span>${esc(e.note)}</span>`:""}</span></button>`;
+      ${e.note?`<span>${esc(e.note)}</span>`:""}
+      ${changeStamp(row)?`<span class="stamp">${esc(changeStamp(row))}</span>`:""}</span></button>`;
   }).join("")}</div>`
   : all.length
   ? `<div class="empty">No ${sel.size===1?CHANGEKINDS.find(c=>c[0]===[...sel][0])[1].toLowerCase():"matching entries"} to show. Choose another filter, or Show all.</div>`
@@ -1817,10 +1852,10 @@ function makeDb(client){
         onSnapshot(next, onErr){
           let dead = false;
           const pull = async () => {
-            const {data,error} = await client.from(table).select("id,data");
+            const {data,error} = await client.from(table).select("id,data,updated_at");
             if (dead) return;
             if (error){ if(onErr) onErr({code:"unavailable", message:error.message}); return; }
-            const docs = data.map(r=>({id:r.id, exists:true, data:()=>r.data}));
+            const docs = data.map(r=>({id:r.id, exists:true, data:()=>r.data, updatedAt:r.updated_at}));
             next({docs, size:docs.length, empty:!docs.length, docChanges:()=>[], metadata:{}});
           };
           pull();
@@ -1916,10 +1951,14 @@ authBtn.onclick = async ()=>{
     rebuildRooms(); render();
   });
   state.db.collection("exceptions").onSnapshot(snap=>{
-    state.exceptions = new Map(snap.docs.map(d=>[d.id, d.data()])); render();
+    state.exceptions = new Map(snap.docs.map(d=>[d.id, d.data()]));
+    snap.docs.forEach(d => state.stamps.set("ex:"+d.id, d.updatedAt));
+    render();
   });
   state.db.collection("reservations").onSnapshot(snap=>{
-    state.reservations = new Map(snap.docs.map(d=>[d.id, d.data()])); render();
+    state.reservations = new Map(snap.docs.map(d=>[d.id, d.data()]));
+    snap.docs.forEach(d => state.stamps.set("res:"+d.id, d.updatedAt));
+    render();
   });
 })();
 </script>

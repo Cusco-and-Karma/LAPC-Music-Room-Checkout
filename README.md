@@ -127,7 +127,10 @@ combine:
 | **Cancellations** | cancelled reservations and cancelled lessons |
 
 Each chip carries its count, the heading reports "2 of 6" while filtered, and
-*Show all* clears. Clicking an entry opens that booking — which is how you reach
+*Show all* clears. Every entry also says when it happened, in your own time
+zone — "Booked Sep 21, 9:44 am · edited Sep 29, 3:21 pm", "Cancelled Sep 25,
+8:48 am". It records *when*, not *who*: everyone signs in with the same shared
+account, so there is no way to tell editors apart. Clicking an entry opens that booking — which is how you reach
 a cancelled one, since it is no longer drawn on the grid.
 
 **Month view.** *Month* has three modes, because twenty rooms across thirty days
