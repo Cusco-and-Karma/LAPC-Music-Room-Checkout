@@ -124,10 +124,11 @@ input[type=text]::placeholder{color:var(--ink-3)}
   }
 .col{position:relative;border-left:1px solid var(--line);background:var(--surface)}
 .col.free{cursor:copy}
-.ghost{position:absolute;left:3px;right:3px;z-index:9;pointer-events:none;border-radius:5px;
+/* named apart from .btn.ghost, the plain-button style, which it once collided with */
+.slot-preview{position:absolute;left:3px;right:3px;z-index:9;pointer-events:none;border-radius:5px;
   border:1.5px dashed var(--accent);background:color-mix(in srgb, var(--accent) 9%, transparent);
   padding:4px 6px;display:flex;align-items:flex-start}
-.ghost span{font-family:var(--font-m);font-size:10.5px;font-weight:600;color:var(--accent);
+.slot-preview span{font-family:var(--font-m);font-size:10.5px;font-weight:600;color:var(--accent);
   letter-spacing:-.02em}
 .col:nth-child(2n){background:var(--surface-2)}
 .tick{position:absolute;left:0;right:0;border-top:1px solid var(--line);pointer-events:none}
@@ -805,7 +806,7 @@ function render(){
     el.addEventListener("mousemove", e=>{
       if (e.target.closest(".ev")) return hide();
       const m = slotAt(e.clientY), m2 = Math.min(hi, m + 60);
-      if (!ghost){ ghost = document.createElement("div"); ghost.className = "ghost"; el.appendChild(ghost); }
+      if (!ghost){ ghost = document.createElement("div"); ghost.className = "slot-preview"; el.appendChild(ghost); }
       ghost.classList.remove("hidden");
       ghost.style.top = y(m) + "px";
       ghost.style.height = ((m2 - m) * ppm - 2) + "px";
