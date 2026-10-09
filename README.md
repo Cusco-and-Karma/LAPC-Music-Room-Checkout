@@ -88,7 +88,7 @@ the whole day instead of naming times — it fills the room's column and counts 
 busy at any hour, so the room finder and the overlap warning both treat it as
 taken. The category sets the
 block's colour and lets people filter by it: class, AMP lesson, accompanist,
-tutoring, office hours, Encore, event, rehearsal, reserved, or blocked. Choosing **Class**
+tutoring, office hours, Encore, event, rehearsal, other, or blocked. Choosing **Class**
 adds a course number field (`MUSIC 216-3`), shown on the block and found by the
 search box just like a spreadsheet class — useful for a makeup session or a
 section added mid-term. Reservations live in the database, so a class booked

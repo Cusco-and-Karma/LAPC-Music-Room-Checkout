@@ -513,10 +513,10 @@ const TERM = (window.ROOM_CHECKOUT_CONFIG && window.ROOM_CHECKOUT_CONFIG.term)
   || {name:"Fall 2026", start:"2026-08-31", end:"2026-12-20"};
 const DAYNAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 // The stored value "checkout" is kept so existing bookings keep their category;
-// only what people see says Reserved.
+// only what people see says Other.
 const KINDLABEL = {class:"Class",amp:"AMP lesson",accomp:"Accompanist",tutoring:"Tutoring",
   office:"Office hours",encore:"Encore",event:"Event",rehearsal:"Rehearsal",
-  checkout:"Reserved",blocked:"Blocked"};
+  checkout:"Other",blocked:"Blocked"};
 const KINDVAR = {class:"--k-class",amp:"--k-amp",accomp:"--k-accomp",tutoring:"--k-tutoring",
   office:"--k-office",encore:"--k-encore",event:"--k-event",rehearsal:"--k-rehearsal",
   checkout:"--k-checkout",blocked:"--k-blocked"};
