@@ -19,6 +19,7 @@
   --k-accomp:#5f8a5c; --k-accomp-bg:#e6f0e5; --k-office:#bd6a3e; --k-office-bg:#fbeae0;
   --k-encore:#7f639c; --k-encore-bg:#efe9f5; --k-checkout:#7a2937; --k-checkout-bg:#f7e7e9;
   --k-event:#2d8a8a; --k-event-bg:#dff0ef; --k-tutoring:#a34a78; --k-tutoring-bg:#f8e6ef;
+  --k-rehearsal:#4652b8; --k-rehearsal-bg:#e6e8f7;
   --k-blocked:#6b7076; --k-blocked-bg:#eceaea;
   --warn:#9a6407; --warn-bg:#fdf0d8; --ok:#3f6b45;
   --shadow:0 1px 2px rgba(23,26,29,.06),0 8px 24px -12px rgba(23,26,29,.18);
@@ -36,6 +37,7 @@
   --k-accomp:#96c091; --k-accomp-bg:#212e21; --k-office:#e39a6f; --k-office-bg:#382519;
   --k-encore:#b79ed4; --k-encore-bg:#2c2436; --k-checkout:#e08a99; --k-checkout-bg:#37212a;
   --k-event:#76c6c2; --k-event-bg:#1c3230; --k-tutoring:#dd93b8; --k-tutoring-bg:#37222d;
+  --k-rehearsal:#a2aaf0; --k-rehearsal-bg:#232640;
   --k-blocked:#9aa1a9; --k-blocked-bg:#262a2f;
   --warn:#e0b464; --warn-bg:#3a3021; --ok:#8fc196;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
@@ -49,6 +51,7 @@
   --k-accomp:#96c091; --k-accomp-bg:#212e21; --k-office:#e39a6f; --k-office-bg:#382519;
   --k-encore:#b79ed4; --k-encore-bg:#2c2436; --k-checkout:#e08a99; --k-checkout-bg:#37212a;
   --k-event:#76c6c2; --k-event-bg:#1c3230; --k-tutoring:#dd93b8; --k-tutoring-bg:#37222d;
+  --k-rehearsal:#a2aaf0; --k-rehearsal-bg:#232640;
   --k-blocked:#9aa1a9; --k-blocked-bg:#262a2f;
   --warn:#e0b464; --warn-bg:#3a3021; --ok:#8fc196;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
@@ -121,6 +124,11 @@ input[type=text]::placeholder{color:var(--ink-3)}
   }
 .col{position:relative;border-left:1px solid var(--line);background:var(--surface)}
 .col.free{cursor:copy}
+.ghost{position:absolute;left:3px;right:3px;z-index:9;pointer-events:none;border-radius:5px;
+  border:1.5px dashed var(--accent);background:color-mix(in srgb, var(--accent) 9%, transparent);
+  padding:4px 6px;display:flex;align-items:flex-start}
+.ghost span{font-family:var(--font-m);font-size:10.5px;font-weight:600;color:var(--accent);
+  letter-spacing:-.02em}
 .col:nth-child(2n){background:var(--surface-2)}
 .tick{position:absolute;left:0;right:0;border-top:1px solid var(--line);pointer-events:none}
 .tick.half{border-top-style:dotted;opacity:.65}
@@ -162,6 +170,7 @@ input[type=text]::placeholder{color:var(--ink-3)}
 .ev[data-k=encore]{background:var(--k-encore-bg);border-color:var(--k-encore)}
 .ev[data-k=event]{background:var(--k-event-bg);border-color:var(--k-event)}
 .ev[data-k=tutoring]{background:var(--k-tutoring-bg);border-color:var(--k-tutoring)}
+.ev[data-k=rehearsal]{background:var(--k-rehearsal-bg);border-color:var(--k-rehearsal)}
 .ev[data-k=checkout]{background:var(--k-checkout-bg);border-color:var(--k-checkout)}
 .ev[data-k=blocked]{background:var(--k-blocked-bg);border-color:var(--k-blocked);
   background-image:repeating-linear-gradient(135deg,transparent 0 6px,rgba(107,112,118,.16) 6px 12px)}
@@ -502,11 +511,14 @@ const roomSlug = n => String(n).toLowerCase().replace(/[^a-z0-9]+/g, "-").replac
 const TERM = (window.ROOM_CHECKOUT_CONFIG && window.ROOM_CHECKOUT_CONFIG.term)
   || {name:"Fall 2026", start:"2026-08-31", end:"2026-12-20"};
 const DAYNAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+// The stored value "checkout" is kept so existing bookings keep their category;
+// only what people see says Reserved.
 const KINDLABEL = {class:"Class",amp:"AMP lesson",accomp:"Accompanist",tutoring:"Tutoring",
-  office:"Office hours",encore:"Encore",event:"Event",checkout:"Checkout",blocked:"Blocked"};
+  office:"Office hours",encore:"Encore",event:"Event",rehearsal:"Rehearsal",
+  checkout:"Reserved",blocked:"Blocked"};
 const KINDVAR = {class:"--k-class",amp:"--k-amp",accomp:"--k-accomp",tutoring:"--k-tutoring",
-  office:"--k-office",encore:"--k-encore",event:"--k-event",checkout:"--k-checkout",
-  blocked:"--k-blocked"};
+  office:"--k-office",encore:"--k-encore",event:"--k-event",rehearsal:"--k-rehearsal",
+  checkout:"--k-checkout",blocked:"--k-blocked"};
 // Categories a person can pick when booking, in the same order as the colour
 // key along the bottom - taken from it, so the two cannot drift apart.
 const BOOKABLE = Object.keys(KINDLABEL);
@@ -724,7 +736,7 @@ function render(){
   // columns
   for (const c of cols){
     const occ = byCol.get(c.key);
-    html += `<div class="col${(state.canEdit && !c.group)?" free":""}" data-col="${esc(c.key)}" data-room="${esc(c.rooms[0])}" data-date="${c.date}" style="height:${H}px">`;
+    html += `<div class="col${state.canEdit?" free":""}" data-col="${esc(c.key)}" data-room="${esc(c.rooms[0])}"${c.group?` data-group="1"`:""} data-date="${c.date}" style="height:${H}px">`;
     for (let m = lo; m <= hi; m += 30)
       html += `<div class="tick${m%60===0?"":" half"}" style="top:${y(m)}px"></div>`;
     if (c.date === todayISO){
@@ -774,16 +786,39 @@ function render(){
   tn.classList.toggle("hidden", anyInTerm);
   if (!anyInTerm) tn.innerHTML = `Outside the <strong>${esc(TERM.name)}</strong> term
     (${esc(shortDate(TERM.start))} &ndash; ${esc(longDate(TERM.end))}). No classes are scheduled here.
-    Rooms can still be checked out.`;
+    Rooms can still be reserved.`;
   grid.querySelectorAll(".ev").forEach(el=>{
     el.addEventListener("click", ()=> openOccurrence(byCol.get(el.dataset.col)[+el.dataset.i]));
   });
+  /* Like Outlook: hovering empty space previews an hour starting at the
+     quarter-hour under the pointer, and clicking books exactly that. */
   if (state.canEdit) grid.querySelectorAll(".col").forEach(el=>{
+    // People aim at the grid lines, and a pointer reports whole pixels while the
+    // lines fall on fractional ones, so a click on a line lands a hair above it.
+    // Two pixels of grace makes clicking the 5:30 line mean 5:30.
+    const slotAt = clientY => {
+      const yPx = clientY - el.getBoundingClientRect().top + 2;
+      return Math.max(lo, Math.min(hi - 30, Math.floor((lo + (yPx - PAD) / ppm) / 15) * 15));
+    };
+    let ghost = null;
+    const hide = () => ghost && ghost.classList.add("hidden");
+    el.addEventListener("mousemove", e=>{
+      if (e.target.closest(".ev")) return hide();
+      const m = slotAt(e.clientY), m2 = Math.min(hi, m + 60);
+      if (!ghost){ ghost = document.createElement("div"); ghost.className = "ghost"; el.appendChild(ghost); }
+      ghost.classList.remove("hidden");
+      ghost.style.top = y(m) + "px";
+      ghost.style.height = ((m2 - m) * ppm - 2) + "px";
+      ghost.innerHTML = `<span>+ ${fmt12(m)} &ndash; ${fmt12(m2)}</span>`;
+    });
+    el.addEventListener("mouseleave", hide);
     el.addEventListener("click", e=>{
       if (e.target.closest(".ev")) return;
-      const yPx = e.clientY - el.getBoundingClientRect().top;
-      const m = Math.max(lo, Math.min(hi-30, Math.round((lo + (yPx-PAD)/ppm)/15)*15));
-      openNew({room:el.dataset.room, date:el.dataset.date, start:toHM(m), end:toHM(Math.min(hi,m+60))});
+      hide();
+      const m = slotAt(e.clientY);
+      // the folded practice column stands for nine rooms, so let the person choose
+      openNew({room: el.dataset.group ? undefined : el.dataset.room,
+               date: el.dataset.date, start: toHM(m), end: toHM(Math.min(hi, m + 60))});
     });
   });
   paintStamp(); paintChangeCount();
@@ -1340,7 +1375,7 @@ function openNew(seed, editId){
     const hits = findConflicts(r, editId);
     box.innerHTML = hits.length
       ? `<div class="note warn"><strong>${hits.length} overlap${hits.length>1?"s":""}</strong> with what is already scheduled.
-         You can still check out — the grid will show them side by side.
+         You can still reserve it — the grid will show them side by side.
          <div style="margin-top:6px;font-family:var(--font-m);font-size:11.5px;line-height:1.5">
          ${hits.slice(0,6).map(h=>`${shortDate(h.date)} · ${h.room.split(" ")[0]} · ${esc(h.title)} ${h.allDay ? "(all day)" : `${fmt12(h.start)}–${fmt12(h.end)}`}`).join("<br>")}
          ${hits.length>6?`<br>+ ${hits.length-6} more`:""}</div></div>`
@@ -1873,7 +1908,7 @@ function setSignedIn(on, email){
   state.canEdit = on;
   role.textContent = on ? "Can edit" : "View only";
   role.classList.toggle("edit", on);
-  role.title = on ? "Signed in as "+email : "Sign in to check out rooms and mark changes.";
+  role.title = on ? "Signed in as "+email : "Sign in to reserve rooms and mark changes.";
   authBtn.textContent = on ? "Sign out" : "Sign in to edit";
   document.getElementById("newBtn").classList.toggle("hidden", !on);
   render();

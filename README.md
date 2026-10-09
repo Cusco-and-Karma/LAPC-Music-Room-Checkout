@@ -73,15 +73,22 @@ date so you can see the conflict. Editors get a button straight through to the
 checkout form with the search already filled in. Hidden rooms are still
 searched, since hiding is only about your own view.
 
-**Reserving rooms.** *+ Reserve a Room* → pick rooms, a category, a date
+**Reserving rooms.** The quickest way is to click the calendar itself, as in
+Outlook: hovering over empty space in Day or Week view shows a dashed preview of
+the hour you would book, starting at the quarter-hour under the pointer, and
+clicking opens the form with that room, day and time already filled in. Clicking
+a grid line means that time. The folded practice-room column leaves the room for
+you to pick, since it stands for nine. Month view clicks still open the day.
+
+Or use *+ Reserve a Room* → pick rooms, a category, a date
 range, a time range, and optionally specific weekdays. **Leaving the weekdays blank books
 every day, weekends included** — the form says how many dates that is before you
 save, and warns when a long range has no weekdays picked. Tick **All day** to hold the room for
 the whole day instead of naming times — it fills the room's column and counts as
 busy at any hour, so the room finder and the overlap warning both treat it as
 taken. The category sets the
-block's colour and lets people filter by it: checkout, class, event, tutoring,
-AMP lesson, accompanist, office hours, Encore, or blocked. Choosing **Class**
+block's colour and lets people filter by it: class, AMP lesson, accompanist,
+tutoring, office hours, Encore, event, rehearsal, reserved, or blocked. Choosing **Class**
 adds a course number field (`MUSIC 216-3`), shown on the block and found by the
 search box just like a spreadsheet class — useful for a makeup session or a
 section added mid-term. Reservations live in the database, so a class booked

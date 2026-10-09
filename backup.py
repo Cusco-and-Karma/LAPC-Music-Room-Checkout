@@ -30,7 +30,7 @@ DAYNAMES = {0: "Sunday", 1: "Monday", 2: "Tuesday", 3: "Wednesday",
 # Block colours, matching the categories the site uses.
 FILL = {"class": "FCF0D1", "amp": "DCE9F2", "accomp": "E2EFE1", "office": "FBEAE0",
         "encore": "EFE9F5", "event": "DFF0EF", "tutoring": "F8E6EF",
-        "checkout": "F7E7E9", "blocked": "ECEAEA"}
+        "rehearsal": "E6E8F7", "checkout": "F7E7E9", "blocked": "ECEAEA"}
 STRIPE = ("FFFFFF", "F7F7F6")
 
 
