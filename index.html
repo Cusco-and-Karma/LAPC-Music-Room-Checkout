@@ -330,6 +330,12 @@ input[type=text]::placeholder{color:var(--ink-3)}
 .item .m{flex:1;min-width:0}
 .item .m b{display:block;font-size:12.5px;font-weight:700}
 .item .m span{display:block;font-size:11.5px;color:var(--ink-3);font-family:var(--font-m)}
+.csort{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.csort label{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;color:var(--ink-3)}
+.csort select{width:auto}
+.list .grp{background:var(--surface-2);padding:7px 11px 5px;display:flex;justify-content:space-between;
+  font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;color:var(--ink-2)}
+.list .grp span{color:var(--ink-3);font-family:var(--font-m);letter-spacing:0}
 .empty{padding:22px;text-align:center;color:var(--ink-3);font-size:12.5px;
   border:1px dashed var(--line-2);border-radius:var(--r)}
 .hidden{display:none !important}
@@ -568,7 +574,7 @@ const roomTag = r => (r.match(/^3414-([A-I])\b/)||[,""])[1];
 const state = {
   date: iso(new Date()), view:"day", weekRoom: ROOMS[0], q:"",
   collapsePractice: true, kinds: new Set(), rooms: new Map(), hidden: new Set(),
-  monthMode: "room", changeKinds: new Set(), stamps: new Map(),
+  monthMode: "room", changeKinds: new Set(), changeSort: "event", changeRev: false, stamps: new Map(),
   canEdit:false, db:null, downloads:null,
   exceptions:new Map(), reservations:new Map(), sel:null
 };
@@ -1879,6 +1885,69 @@ const changeKindOf = row =>
   row.t === "res" ? (row.r.cancelled ? "cancelled" : "reservation")
                   : (row.e.status === "cancelled" && !row.e.movedTo ? "cancelled" : "change");
 
+/* The order of the Changes list. Every order but the event date also puts the
+   list under headings. The choice is remembered in this browser. */
+const CHANGESORTS = [["event","Date of the event"],["recent","When it was changed"],
+  ["type","Type of change"],["category","Category"],["room","Room"],["person","Person"]];
+const SORT_KEY = "roomCheckout.changeSort";
+try {
+  const v = JSON.parse(localStorage.getItem(SORT_KEY));
+  if (v && CHANGESORTS.some(c => c[0] === v.by)){ state.changeSort = v.by; state.changeRev = !!v.rev; }
+} catch(e){}
+const TYPEORDER = ["Reservation","Changed","Moved","Note","Cancelled"];
+
+// what a row is about: when it was last written, and its type, category, room and person
+function changeFacts(row){
+  if (row.t === "res"){
+    const r = row.r, last = state.stamps.get("res:"+row.id);
+    return {when: msOf(last != null ? last : r.at), type: r.cancelled ? "Cancelled" : "Reservation",
+      kind: r.kind, room: (r.rooms||[]).map(x => x.split(" ")[0]).join(", "), person: r.person || ""};
+  }
+  const e = row.e, id = String(e.baseId || ""), last = state.stamps.get("ex:"+row.id);
+  const res = id.startsWith("res:") ? state.reservations.get(id.slice(4)) : null;
+  const base = res ? null : BASE.find(b => b.id === id);
+  const src = res ? {kind:res.kind, room:(res.rooms||[])[0], person:res.person}
+            : base ? {kind:base.kind, room:base.room, person:base.instructor} : {};
+  return {when: msOf(last != null ? last : e.at),
+    type: e.movedTo ? "Moved" : e.status === "cancelled" ? "Cancelled" : e.status === "moved" ? "Changed" : "Note",
+    kind: src.kind, room: String(e.room || src.room || "").split(" ")[0], person: e.person || src.person || ""};
+}
+function dayHeading(ms){
+  if (isNaN(ms)) return "Date not recorded";
+  const d = new Date(ms), day = new Date(ms), today = new Date();
+  day.setHours(0,0,0,0); today.setHours(0,0,0,0);
+  const ago = Math.round((today - day) / 864e5);
+  if (ago === 0) return "Today";
+  if (ago === 1) return "Yesterday";
+  return d.toLocaleDateString(undefined, d.getFullYear() === today.getFullYear()
+    ? {weekday:"short", month:"short", day:"numeric"} : {month:"short", day:"numeric", year:"numeric"});
+}
+// sorts rows in place and gives each its heading (row.g); "" means no headings
+function sortChanges(rows, by, rev){
+  const byEvent = (a,b) => a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : 0;
+  const kinds = Object.keys(KINDLABEL);
+  const text = (x, none) => x ? [0, x.toLowerCase()] : [1, none];   // blanks go last
+  rows.forEach(r => {
+    const f = r.f = changeFacts(r);
+    r.g = by === "recent" ? dayHeading(f.when)
+        : by === "type" ? ({Reservation:"Reservations", Note:"Notes"}[f.type] || f.type)
+        : by === "category" ? (KINDLABEL[f.kind] || KINDLABEL.checkout)
+        : by === "room" ? (f.room || "No room")
+        : by === "person" ? (f.person || "No name given") : "";
+    r.k = by === "recent" ? [isNaN(f.when) ? 1 : 0, -(f.when || 0)]
+        : by === "type" ? [TYPEORDER.indexOf(f.type), ""]
+        : by === "category" ? [kinds.indexOf(KINDLABEL[f.kind] ? f.kind : "checkout"), ""]
+        : by === "room" ? text(f.room, "")
+        : by === "person" ? text(f.person, "") : [0, ""];
+  });
+  const cmp = (a,b) => a < b ? -1 : a > b ? 1 : 0;
+  rows.sort((a,b) => cmp(a.k[0], b.k[0])
+    || (typeof a.k[1] === "string" ? a.k[1].localeCompare(b.k[1], undefined, {numeric:true}) : cmp(a.k[1], b.k[1]))
+    || byEvent(a,b));
+  if (rev && (by === "event" || by === "recent")) rows.reverse();
+  return rows;
+}
+
 function openChanges(){
   const all = [];
   for (const [id,r] of state.reservations) all.push({t:"res", id, r, sort:r.dateStart});
@@ -1889,7 +1958,17 @@ function openChanges(){
   const counts = {};
   for (const [k] of CHANGEKINDS) counts[k] = all.filter(r => r.ck === k).length;
   const sel = state.changeKinds;
-  const rows = sel.size ? all.filter(r => sel.has(r.ck)) : all;
+  const by = state.changeSort, rev = state.changeRev;
+  const rows = sortChanges(sel.size ? all.filter(r => sel.has(r.ck)) : all.slice(), by, rev);
+  const perGroup = new Map();
+  rows.forEach(r => perGroup.set(r.g, (perGroup.get(r.g)||0) + 1));
+  const dirLabel = by === "event" ? (rev ? "Latest first" : "Earliest first")
+                 : by === "recent" ? (rev ? "Oldest first" : "Newest first") : "";
+  const sorter = `<div class="csort"><label for="cSort">Sort by</label>
+    <select id="cSort">${CHANGESORTS.map(([k,l]) =>
+      `<option value="${k}"${k === by ? " selected" : ""}>${l}</option>`).join("")}</select>
+    ${dirLabel ? `<button type="button" class="btn ghost" id="cRev" style="font-size:12px;padding:3px 8px"
+      title="Reverse the order">${dirLabel} &#8645;</button>` : ``}</div>`;
 
   const chips = `<div class="chips" id="cFilter">${CHANGEKINDS.map(([k,lbl])=>
       `<button type="button" class="chip wd" data-ck="${k}" aria-pressed="${sel.has(k)}"
@@ -1897,7 +1976,19 @@ function openChanges(){
     ${sel.size ? `<button type="button" class="btn ghost" id="cAll"
       style="font-size:12px;padding:3px 8px">Show all</button>` : ``}</div>`;
 
-  const body = chips + (rows.length ? `<div class="list">${rows.map(row=>{
+  let lastGroup = null;
+  const body = sorter + chips + (rows.length ? `<div class="list">${rows.map(row=>{
+    // a heading wherever the group changes
+    const head = row.g && row.g !== lastGroup
+      ? `<div class="grp">${esc(row.g)}<span>${perGroup.get(row.g)}</span></div>` : "";
+    lastGroup = row.g;
+    return head + changeRow(row);
+  }).join("")}</div>`
+  : all.length
+  ? `<div class="empty">No ${sel.size===1?CHANGEKINDS.find(c=>c[0]===[...sel][0])[1].toLowerCase():"matching entries"} to show. Choose another filter, or Show all.</div>`
+  : `<div class="empty">Nothing has been changed yet. The grid is showing the weekly master schedule exactly as it came from the spreadsheet.</div>`);
+
+  function changeRow(row){
     if (row.t==="res"){ const r=row.r;
       return `<div class="item${r.cancelled?" off":""}">
         <span class="bar-c" style="background:var(--${r.cancelled?"line-2":r.kind==="blocked"?"k-blocked":"k-checkout"})"></span>
@@ -1917,16 +2008,21 @@ function openChanges(){
       <span>${esc(shortDate(e.date))}${e.room?" · "+esc(e.room.split(" ")[0]):""}${e.start?" · "+fmt12(toMin(e.start))+"–"+fmt12(toMin(e.end)):""}</span>
       ${e.note?`<span>${esc(e.note)}</span>`:""}
       ${changeStamp(row)?`<span class="stamp">${esc(changeStamp(row))}</span>`:""}</span></button>`;
-  }).join("")}</div>`
-  : all.length
-  ? `<div class="empty">No ${sel.size===1?CHANGEKINDS.find(c=>c[0]===[...sel][0])[1].toLowerCase():"matching entries"} to show. Choose another filter, or Show all.</div>`
-  : `<div class="empty">Nothing has been changed yet. The grid is showing the weekly master schedule exactly as it came from the spreadsheet.</div>`);
+  }
 
   const shown = sel.size ? `${rows.length} of ${all.length}` : `${all.length}`;
   openDrawer("Changes and reservations",
     `${shown} entr${(sel.size?rows.length:all.length)===1?"y":"ies"} on top of the master schedule`,
-    body, `<button class="btn ghost" id="cClose">Close</button>`);
+    body, `<button class="btn ghost" id="cClose">Close</button>`,
+    {untracked:true});   // sorting and filtering aren't edits
   document.getElementById("cClose").onclick = closeDrawer;
+  const keepSort = () => { try { localStorage.setItem(SORT_KEY,
+    JSON.stringify({by: state.changeSort, rev: state.changeRev})); } catch(e){} };
+  document.getElementById("cSort").onchange = e => {
+    state.changeSort = e.target.value; state.changeRev = false; keepSort(); openChanges();
+  };
+  const cRev = document.getElementById("cRev");
+  if (cRev) cRev.onclick = () => { state.changeRev = !state.changeRev; keepSort(); openChanges(); };
   drawer.querySelectorAll("[data-ck]").forEach(b => b.onclick = ()=>{
     const k = b.dataset.ck;
     sel.has(k) ? sel.delete(k) : sel.add(k);
@@ -1999,7 +2095,13 @@ function tableOf(path){
 function current(path){ const [m,id] = tableOf(path); const v = m && m.get(id); return v === undefined ? null : v; }
 // keep the local copy in step until the live feed catches up, so a second
 // save straight after the first records the right "before"
-function setLocal(path, v){ const [m,id] = tableOf(path); if (m) v == null ? m.delete(id) : m.set(id, v); }
+function setLocal(path, v){
+  const [m,id] = tableOf(path);
+  if (!m) return;
+  v == null ? m.delete(id) : m.set(id, v);
+  const pre = {exceptions:"ex:", reservations:"res:"}[path.slice(0, path.indexOf("/"))];
+  if (pre && v != null) state.stamps.set(pre+id, new Date().toISOString());   // for "When it was changed"
+}
 // jsonb hands keys back in its own order, so compare with keys sorted
 const canon = v => JSON.stringify(v, (k,x) => x && typeof x === "object" && !Array.isArray(x)
   ? Object.keys(x).sort().reduce((o,key)=>(o[key]=x[key],o),{}) : x);

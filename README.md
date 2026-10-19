@@ -153,8 +153,8 @@ block switches the panel to it; if you've typed something you haven't saved, it
 asks first. *Pop in* puts it back. The choice is remembered per browser, and on
 a phone the panel always covers the screen.
 
-**Changes panel.** Every record layered on top of the master schedule, in date
-order — nothing is ever dropped from here. Three chips narrow it, and they
+**Changes panel.** Every record layered on top of the master schedule —
+nothing is ever dropped from here. Three chips narrow it, and they
 combine:
 
 | chip | shows |
@@ -164,7 +164,22 @@ combine:
 | **Cancellations** | cancelled reservations and cancelled lessons |
 
 Each chip carries its count, the heading reports "2 of 6" while filtered, and
-*Show all* clears. Every entry also says when it happened, in your own time
+*Show all* clears.
+
+**Sort by** orders the list, and works together with the chips:
+
+| sort | order |
+|---|---|
+| **Date of the event** | the date each booking or change applies to (the default) |
+| **When it was changed** | newest edit first, under Today / Yesterday / day headings |
+| **Type of change** | Reservations, Changed, Moved, Notes, Cancelled |
+| **Category** | Class, AMP lesson, Tutoring… in the legend's order |
+| **Room** | grouped by room |
+| **Person** | grouped by instructor or whoever booked it |
+
+The two date orders can be flipped (earliest/latest, newest/oldest), each
+heading shows how many entries sit under it, and the choice is remembered in
+the browser. Every entry also says when it happened, in your own time
 zone — "Booked Sep 21, 9:44 am · edited Sep 29, 3:21 pm", "Cancelled Sep 25,
 8:48 am". It records *when*, not *who*: everyone signs in with the same shared
 account, so there is no way to tell editors apart. Clicking an entry opens that booking — which is how you reach
