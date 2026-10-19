@@ -270,6 +270,14 @@ input[type=text]::placeholder{color:var(--ink-3)}
   display:flex;flex-direction:column}
 .drawer.on{transform:none}
 .dhead{display:flex;align-items:flex-start;gap:12px;padding:16px 18px 12px;border-bottom:1px solid var(--line)}
+#dPop{font-size:12px;padding:5px 9px;align-self:flex-start;white-space:nowrap}
+@media (min-width:761px){
+  body.docked .scrim{display:none}
+  body.docked.drawer-open{padding-right:min(460px,100vw)}
+  body.docked .drawer{box-shadow:none;border-left:2px solid var(--line-2)}
+}
+@media (max-width:760px){ #dPop{display:none} }
+.ev.selected{box-shadow:0 0 0 2px var(--accent), var(--shadow);z-index:16}
 .dhead h2{font-family:var(--font-d);font-size:17px;font-weight:800;margin:0;letter-spacing:-.015em;flex:1}
 .dhead .sub{font-size:12px;color:var(--ink-3);margin-top:2px;font-weight:500}
 .dbody{padding:16px 18px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:16px}
@@ -494,6 +502,7 @@ input[type=text]::placeholder{color:var(--ink-3)}
       <h2 id="dTitle">Detail</h2>
       <div class="sub" id="dSub"></div>
     </div>
+    <button class="btn ghost" id="dPop" title="Keep this panel open beside the calendar, so the calendar can still be scrolled and clicked">Pop out</button>
     <button class="btn ghost icon" id="dClose" aria-label="Close">&#10005;</button>
   </div>
   <div class="dbody" id="dBody"></div>
@@ -752,6 +761,7 @@ function render(){
       const h = o.allDay ? (hi-lo)*ppm : Math.max(15,(o.end-o.start)*ppm-2);
       const w = 100/L.of, left = L.idx*w;
       const cls = ["ev"];
+      if (state.sel && state.sel.srcId === o.srcId && state.sel.date === o.date) cls.push("selected");
       if(h<26)cls.push("tiny"); else if(h<40)cls.push("short");
       if(L.of>1)cls.push("narrow");
       // escape each part, not the joined string - the separator is real markup
@@ -789,7 +799,7 @@ function render(){
     (${esc(shortDate(TERM.start))} &ndash; ${esc(longDate(TERM.end))}). No classes are scheduled here.
     Rooms can still be reserved.`;
   grid.querySelectorAll(".ev").forEach(el=>{
-    el.addEventListener("click", ()=> openOccurrence(byCol.get(el.dataset.col)[+el.dataset.i]));
+    el.addEventListener("click", ()=> { if (okToReplace()) openOccurrence(byCol.get(el.dataset.col)[+el.dataset.i]); });
   });
   /* Like Outlook: hovering empty space previews an hour starting at the
      quarter-hour under the pointer, and clicking books exactly that. */
@@ -818,6 +828,7 @@ function render(){
       hide();
       const m = slotAt(e.clientY);
       // the folded practice column stands for nine rooms, so let the person choose
+      if (!okToReplace()) return;
       openNew({room: el.dataset.group ? undefined : el.dataset.room,
                date: el.dataset.date, start: toHM(m), end: toHM(Math.min(hi, m + 60))});
     });
@@ -882,6 +893,7 @@ function renderMonth(){
     }</div>`;
     grid.querySelectorAll(".ag-item").forEach(b => b.onclick = ()=>{
       const list = visibleOn(b.dataset.d, rooms);
+      if (!okToReplace()) return;
       state.date = b.dataset.d;
       openOccurrence(list[+b.dataset.i]);
     });
@@ -1117,7 +1129,26 @@ const SCOPES = [["one","This date"],["following","This and later"],["all","Every
 
 /* ---------- drawer ---------- */
 const drawer = document.getElementById("drawer"), scrim = document.getElementById("scrim");
-function openDrawer(title, sub, body, foot){
+/* Popped out, the panel sits beside the calendar instead of over it. The choice
+   is remembered in this browser. Because the calendar stays clickable, a click
+   on it can replace the panel, so unsaved edits are guarded. */
+const DOCK_KEY = "roomCheckout.docked";
+let docked = false, drawerDirty = false, drawerTracked = true;
+try { docked = localStorage.getItem(DOCK_KEY) === "1"; } catch(e){}
+function paintDock(){
+  document.body.classList.toggle("docked", docked);
+  const b = document.getElementById("dPop");
+  b.textContent = docked ? "Pop in" : "Pop out";
+  b.setAttribute("aria-pressed", String(docked));
+  drawer.setAttribute("aria-modal", String(!docked));
+}
+function okToReplace(){
+  if (!drawer.classList.contains("on") || !drawerDirty) return true;
+  return confirm("You have changes in the panel that you haven't saved. Discard them?");
+}
+function openDrawer(title, sub, body, foot, opts){
+  drawerDirty = false; drawerTracked = !(opts && opts.untracked);
+  document.body.classList.add("drawer-open");
   document.getElementById("dTitle").textContent = title;
   document.getElementById("dSub").textContent = sub||"";
   document.getElementById("dBody").innerHTML = body;
@@ -1126,13 +1157,31 @@ function openDrawer(title, sub, body, foot){
   const f = drawer.querySelector("input,select,textarea,button"); if(f) f.focus();
 }
 function closeDrawer(){ drawer.classList.remove("on"); scrim.classList.remove("on");
-  drawer.setAttribute("aria-hidden","true"); state.sel=null; }
+  document.body.classList.remove("drawer-open");
+  drawer.setAttribute("aria-hidden","true");
+  const had = state.sel; state.sel = null; drawerDirty = false;
+  if (had) render();   // drop the highlight from the block that was open
+}
+document.getElementById("dPop").onclick = ()=>{
+  docked = !docked;
+  try { localStorage.setItem(DOCK_KEY, docked ? "1" : "0"); } catch(e){}
+  paintDock();
+};
+// anything typed or toggled in the panel counts as an unsaved edit
+const dBodyEl = document.getElementById("dBody");
+dBodyEl.addEventListener("input",  ()=>{ if (drawerTracked) drawerDirty = true; });
+dBodyEl.addEventListener("change", ()=>{ if (drawerTracked) drawerDirty = true; });
+dBodyEl.addEventListener("click", e=>{
+  const chip = e.target.closest(".chip");
+  if (drawerTracked && chip && !chip.closest("#mScope, #cFilter") && !chip.dataset.vis) drawerDirty = true;
+});
 document.getElementById("dClose").onclick = closeDrawer;
 scrim.onclick = closeDrawer;
 document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeDrawer(); });
 
 function openOccurrence(o){
   state.sel = o;
+  if (state.view !== "month") render();
   const when = o.allDay ? "All day" : `${fmt12(o.start)} – ${fmt12(o.end)}`;
   const orig = (o.moved) ? `<dt>Was</dt><dd class="mono">${esc(o.origRoom)} · ${fmt12(o.origStart)} – ${fmt12(o.origEnd)}</dd>` : "";
   let body = `
@@ -1627,7 +1676,8 @@ function openFind(seed){
     <p class="si-err" id="qErr" hidden></p>
     <div id="qOut"></div>`;
   openDrawer("Find a room", "Which rooms are free for a time you have in mind",
-    body, `<button class="btn primary" id="qGo">Search</button><button class="btn ghost" id="qClose">Close</button>`);
+    body, `<button class="btn primary" id="qGo">Search</button><button class="btn ghost" id="qClose">Close</button>`,
+    {untracked:true});   // a search, not an edit: nothing to lose
 
   const $ = id => document.getElementById(id);
   $("qClose").onclick = closeDrawer;
@@ -1990,17 +2040,17 @@ function paintFold(){
 document.getElementById("foldBtn").onclick = ()=>{
   state.collapsePractice = !state.collapsePractice; paintFold(); render();
 };
-document.getElementById("findBtn").onclick = () => openFind();
-document.getElementById("roomsBtn").onclick = openRooms;
-document.getElementById("openChanges").onclick = openChanges;
+document.getElementById("findBtn").onclick = () => { if (okToReplace()) openFind(); };
+document.getElementById("roomsBtn").onclick = () => { if (okToReplace()) openRooms(); };
+document.getElementById("openChanges").onclick = () => { if (okToReplace()) openChanges(); };
 document.getElementById("exportBtn").onclick = doExport;
-document.getElementById("newBtn").onclick = ()=>openNew({date:state.date});
+document.getElementById("newBtn").onclick = ()=>{ if (okToReplace()) openNew({date:state.date}); };
 
 const wr = document.getElementById("weekRoom");
 wr.innerHTML = ROOMS.map(r=>`<option>${esc(r)}</option>`).join("");
 wr.onchange = e=>{ state.weekRoom = e.target.value; render(); };
 
-loadHidden(); paintLegend(); paintFold(); paintRoomsBtn(); syncView(); render();
+paintDock(); loadHidden(); paintLegend(); paintFold(); paintRoomsBtn(); syncView(); render();
 
 /* ---------- Supabase: storage, live sync, and the shared editor login ----------
    Documents are stored whole in a jsonb column, so the app's own shapes go in

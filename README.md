@@ -136,6 +136,13 @@ rather than stamping a pile of per-date exceptions — *This and later* splits i
 into two, exactly as Outlook does, leaving earlier dates alone. *Reset* undoes
 per-date changes at whatever scope is selected.
 
+**Pop out.** On a computer, *Pop out* at the top of any panel moves it beside the
+calendar instead of over it, so the calendar stays visible and scrollable while
+you review or edit. The block you're editing is outlined, and clicking another
+block switches the panel to it; if you've typed something you haven't saved, it
+asks first. *Pop in* puts it back. The choice is remembered per browser, and on
+a phone the panel always covers the screen.
+
 **Changes panel.** Every record layered on top of the master schedule, in date
 order — nothing is ever dropped from here. Three chips narrow it, and they
 combine:
