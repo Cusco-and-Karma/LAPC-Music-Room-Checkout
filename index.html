@@ -278,6 +278,15 @@ input[type=text]::placeholder{color:var(--ink-3)}
 }
 @media (max-width:760px){ #dPop{display:none} }
 .ev.selected{box-shadow:0 0 0 2px var(--accent), var(--shadow);z-index:16}
+/* the note that follows a save, with its Undo */
+.toast{position:fixed;left:16px;bottom:16px;z-index:220;max-width:min(460px,calc(100vw - 32px));
+  display:flex;align-items:center;gap:12px;padding:9px 9px 9px 14px;border-radius:var(--r);
+  background:var(--ink);color:var(--paper);box-shadow:var(--shadow-lg);font-size:13px;
+  opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .16s,transform .16s}
+.toast.on{opacity:1;transform:none;pointer-events:auto}
+.toast .msg{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.toast .btn{background:transparent;color:inherit;border-color:currentColor}
+.toast .btn:hover{background:transparent;text-decoration:underline}
 .dhead h2{font-family:var(--font-d);font-size:17px;font-weight:800;margin:0;letter-spacing:-.015em;flex:1}
 .dhead .sub{font-size:12px;color:var(--ink-3);margin-top:2px;font-weight:500}
 .dbody{padding:16px 18px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:16px}
@@ -485,6 +494,7 @@ input[type=text]::placeholder{color:var(--ink-3)}
   <button class="btn" id="findBtn">Find a room</button>
   <button class="btn" id="roomsBtn">Rooms</button>
   <button class="btn" id="openChanges">Changes <span id="chgCount" class="mono"></span></button>
+  <button class="btn hidden" id="undoBtn">Undo</button>
   <button class="btn" id="exportBtn">Export</button>
   <button class="btn primary hidden" id="newBtn">+ Reserve a Room</button>
 </div>
@@ -508,6 +518,9 @@ input[type=text]::placeholder{color:var(--ink-3)}
   <div class="dbody" id="dBody"></div>
   <div class="dfoot" id="dFoot"></div>
 </aside>
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <span class="msg" id="toastMsg"></span><button class="btn" id="toastUndo">Undo</button>
+</div>
 
 <script>
 const DATA = {"rooms":["3400 (Choir)","3401 (Band)","3414-A (Practice)","3414-B (Practice)","3414-C (Practice)","3414-D (Practice)","3414-E (Practice)","3414-F (Practice)","3414-G (Practice)","3414-H (Practice)","3414-I (Perc)","3414-J (Lance)","3414-K (Perc)","3414-L (Michelle)","3414-M (Commercial)","3422","3423","3424 (Piano lab)"],"baseline":[{"id":"mon-3400-choir-0935","dow":1,"room":"3400 (Choir)","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 412-414","title":"Elementary Voice","instructor":"Garineh Avakian"},{"id":"mon-3400-choir-1245","dow":1,"room":"3400 (Choir)","kind":"class","start":"12:45","end":"14:10","code":"MUSIC 299, 501","title":"Music Honors / College Choir","instructor":"Garineh Avakian"},{"id":"mon-3400-choir-1420","dow":1,"room":"3400 (Choir)","kind":"class","start":"14:20","end":"16:25","code":"MUSIC 265","title":"Recording Arts Workshop","instructor":"Mark Cross"},{"id":"mon-3401-band-1545","dow":1,"room":"3401 (Band)","kind":"amp","start":"15:45","end":"17:15","code":"","title":"AMP Lessons","instructor":"Jason Stoll"},{"id":"mon-3401-band-1815","dow":1,"room":"3401 (Band)","kind":"office","start":"18:15","end":"18:50","code":"","title":"Office Hours","instructor":"Elliot Deutsch"},{"id":"mon-3401-band-1850","dow":1,"room":"3401 (Band)","kind":"class","start":"18:50","end":"22:00","code":"MUSIC 781","title":"Studio Jazz Band","instructor":"Elliot Deutsch"},{"id":"mon-3414-j-lance-0800","dow":1,"room":"3414-J (Lance)","kind":"accomp","start":"08:00","end":"09:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"mon-3414-j-lance-1100","dow":1,"room":"3414-J (Lance)","kind":"accomp","start":"11:00","end":"11:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"mon-3414-j-lance-1130","dow":1,"room":"3414-J (Lance)","kind":"accomp","start":"11:30","end":"12:30","code":"","title":"Lance Lunch / Space Unavailable","instructor":""},{"id":"mon-3414-j-lance-1400","dow":1,"room":"3414-J (Lance)","kind":"accomp","start":"14:00","end":"16:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"mon-3414-k-perc-1615","dow":1,"room":"3414-K (Perc)","kind":"amp","start":"16:15","end":"17:45","code":"","title":"AMP Lessons","instructor":"Carson Schafer"},{"id":"mon-3414-l-michelle-1100","dow":1,"room":"3414-L (Michelle)","kind":"accomp","start":"11:00","end":"12:00","code":"","title":"Michelle Accomp. Hours","instructor":"Michelle"},{"id":"mon-3414-l-michelle-1345","dow":1,"room":"3414-L (Michelle)","kind":"accomp","start":"13:45","end":"14:30","code":"","title":"Michelle Accomp. Hours","instructor":"Michelle"},{"id":"mon-3414-m-commercial-1110","dow":1,"room":"3414-M (Commercial)","kind":"class","start":"11:10","end":"13:15","code":"MUSIC 161","title":"Introduction to Music Technology","instructor":"Mark Cross"},{"id":"mon-3422-0800","dow":1,"room":"3422","kind":"class","start":"08:00","end":"09:25","code":"MUSIC 217-1","title":"Musicianship","instructor":"Charlotte Wilkins"},{"id":"mon-3422-0935","dow":1,"room":"3422","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 217-2","title":"Musicianship","instructor":"Charlotte Wilkins"},{"id":"mon-3422-1245","dow":1,"room":"3422","kind":"class","start":"12:45","end":"14:10","code":"MUSIC 101","title":"Fundamentals Of Music","instructor":"Jon Titmus"},{"id":"mon-3422-1515","dow":1,"room":"3422","kind":"amp","start":"15:15","end":"16:45","code":"","title":"AMP Lessons","instructor":"Michael Gutierrez"},{"id":"mon-3423-1110","dow":1,"room":"3423","kind":"class","start":"11:10","end":"12:35","code":"MUSIC 216-1","title":"Music Theory","instructor":"Wendy Mazon"},{"id":"mon-3423-1245","dow":1,"room":"3423","kind":"amp","start":"12:45","end":"17:15","code":"","title":"AMP Lessons","instructor":"Justine Boonstra"},{"id":"mon-3424-piano-lab-1720","dow":1,"room":"3424 (Piano lab)","kind":"class","start":"17:20","end":"17:50","code":"MUSIC 321-324","title":"Elementary Piano","instructor":"Jason Stoll"},{"id":"mon-3424-piano-lab-1750","dow":1,"room":"3424 (Piano lab)","kind":"class","start":"17:50","end":"18:45","code":"MUSIC 321-324","title":"Elementary Piano","instructor":"Jason Stoll"},{"id":"tue-3400-choir-0935","dow":2,"room":"3400 (Choir)","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 411","title":"Elementary Voice","instructor":"Garineh Avakian"},{"id":"tue-3400-choir-1420","dow":2,"room":"3400 (Choir)","kind":"class","start":"14:20","end":"15:45","code":"MUSIC 250-1, 250-2, 250-3, 250-4, 299","title":"Music Performance Workshop / Music Honors","instructor":"Cameron Wilkins"},{"id":"tue-3400-choir-1550","dow":2,"room":"3400 (Choir)","kind":"office","start":"15:50","end":"16:25","code":"","title":"Office Hours","instructor":"Kevin Good"},{"id":"tue-3401-band-0935","dow":2,"room":"3401 (Band)","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 299, 650-654","title":"Beginning Guitar / Classical Guitar / Music Honors","instructor":"Bryan Fasola"},{"id":"tue-3401-band-1100","dow":2,"room":"3401 (Band)","kind":"encore","start":"11:00","end":"13:00","code":"Encore","title":"Musical Theatre Techniques","instructor":"Tortell"},{"id":"tue-3401-band-1420","dow":2,"room":"3401 (Band)","kind":"class","start":"14:20","end":"16:25","code":"MUSIC 265","title":"Recording Arts Workshop","instructor":"Mark Cross"},{"id":"tue-3414-a-practice-0945","dow":2,"room":"3414-A (Practice)","kind":"amp","start":"09:45","end":"12:30","code":"","title":"AMP Lessons","instructor":"Justine Boonstra"},{"id":"tue-3414-j-lance-0830","dow":2,"room":"3414-J (Lance)","kind":"accomp","start":"08:30","end":"09:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"tue-3414-j-lance-1100","dow":2,"room":"3414-J (Lance)","kind":"accomp","start":"11:00","end":"12:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"tue-3414-j-lance-1330","dow":2,"room":"3414-J (Lance)","kind":"accomp","start":"13:30","end":"14:00","code":"","title":"Lance Lunch / Space Unavailable / Lance Accomp. Hours","instructor":""},{"id":"tue-3414-k-perc-1615","dow":2,"room":"3414-K (Perc)","kind":"amp","start":"16:15","end":"17:45","code":"","title":"AMP Lessons","instructor":"Kevin Good"},{"id":"tue-3414-l-michelle-1000","dow":2,"room":"3414-L (Michelle)","kind":"accomp","start":"10:00","end":"11:15","code":"","title":"Michelle Accomp. Hours","instructor":"Michelle"},{"id":"tue-3414-l-michelle-1145","dow":2,"room":"3414-L (Michelle)","kind":"amp","start":"11:45","end":"13:15","code":"","title":"AMP Lessons","instructor":"Holly Palmer"},{"id":"tue-3414-l-michelle-1315","dow":2,"room":"3414-L (Michelle)","kind":"accomp","start":"13:15","end":"13:30","code":"","title":"Michelle Accomp. Hours","instructor":"Michelle"},{"id":"tue-3414-m-commercial-1110","dow":2,"room":"3414-M (Commercial)","kind":"class","start":"11:10","end":"13:15","code":"MUSIC 165","title":"Introduction To Recording Arts","instructor":"Mark Cross"},{"id":"tue-3422-0800","dow":2,"room":"3422","kind":"class","start":"08:00","end":"09:25","code":"MUSIC 217-3","title":"Musicianship","instructor":"Charlotte Wilkins"},{"id":"tue-3422-0935","dow":2,"room":"3422","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 216-2","title":"Music Theory","instructor":"Anthony Wardzinski"},{"id":"tue-3422-1110","dow":2,"room":"3422","kind":"class","start":"11:10","end":"12:35","code":"MUSIC 216-3","title":"Music Theory","instructor":"Anthony Wardzinski"},{"id":"tue-3423-0800","dow":2,"room":"3423","kind":"class","start":"08:00","end":"09:25","code":"MUSIC 111","title":"Music Appreciation","instructor":"Bryan Fasola"},{"id":"tue-3423-1110","dow":2,"room":"3423","kind":"class","start":"11:10","end":"12:35","code":"MUSIC 101","title":"Fundamentals Of Music","instructor":"Leila Nunez-Fredell"},{"id":"tue-3424-piano-lab-0800","dow":2,"room":"3424 (Piano lab)","kind":"class","start":"08:00","end":"09:25","code":"MUSIC 299, 322-324, 341","title":"Elementary Piano / Intermediate Piano / Music Honors","instructor":"Alexander Zhu"},{"id":"tue-3424-piano-lab-0935","dow":2,"room":"3424 (Piano lab)","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 321","title":"Elementary Piano","instructor":"Alexander Zhu"},{"id":"wed-3400-choir-0935","dow":3,"room":"3400 (Choir)","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 412-414","title":"Elementary Voice","instructor":"Garineh Avakian"},{"id":"wed-3400-choir-1100","dow":3,"room":"3400 (Choir)","kind":"amp","start":"11:00","end":"12:30","code":"","title":"AMP Lessons","instructor":"April Amante"},{"id":"wed-3400-choir-1245","dow":3,"room":"3400 (Choir)","kind":"class","start":"12:45","end":"14:10","code":"MUSIC 299, 501","title":"Music Honors / College Choir","instructor":"Garineh Avakian"},{"id":"wed-3400-choir-1415","dow":3,"room":"3400 (Choir)","kind":"amp","start":"14:15","end":"16:45","code":"","title":"AMP Lessons","instructor":"April Amante"},{"id":"wed-3401-band-0945","dow":3,"room":"3401 (Band)","kind":"amp","start":"09:45","end":"14:45","code":"","title":"AMP Lessons","instructor":"Jeewon Lee"},{"id":"wed-3401-band-1515","dow":3,"room":"3401 (Band)","kind":"amp","start":"15:15","end":"16:45","code":"","title":"AMP Lessons","instructor":"Jason Stoll"},{"id":"wed-3401-band-1815","dow":3,"room":"3401 (Band)","kind":"office","start":"18:15","end":"18:50","code":"","title":"Office Hours","instructor":"Lipra Blagomira"},{"id":"wed-3401-band-1850","dow":3,"room":"3401 (Band)","kind":"class","start":"18:50","end":"22:00","code":"MUSIC 705","title":"Chamber Music / Blagomira Lipari","instructor":"Wilkins Cameron"},{"id":"wed-3414-a-practice-1245","dow":3,"room":"3414-A (Practice)","kind":"amp","start":"12:45","end":"15:15","code":"","title":"AMP Lessons","instructor":"Shai Golan"},{"id":"wed-3414-j-lance-0800","dow":3,"room":"3414-J (Lance)","kind":"accomp","start":"08:00","end":"09:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"wed-3414-j-lance-1100","dow":3,"room":"3414-J (Lance)","kind":"accomp","start":"11:00","end":"11:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"wed-3414-j-lance-1130","dow":3,"room":"3414-J (Lance)","kind":"accomp","start":"11:30","end":"12:30","code":"","title":"Lance Lunch / Space Unavailable","instructor":""},{"id":"wed-3414-j-lance-1230","dow":3,"room":"3414-J (Lance)","kind":"amp","start":"12:30","end":"13:45","code":"","title":"AMP Lessons","instructor":"April Amante"},{"id":"wed-3414-j-lance-1400","dow":3,"room":"3414-J (Lance)","kind":"accomp","start":"14:00","end":"16:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"wed-3414-k-perc-1300","dow":3,"room":"3414-K (Perc)","kind":"amp","start":"13:00","end":"15:45","code":"","title":"AMP Lessons","instructor":"Doug Mattingly"},{"id":"wed-3414-l-michelle-1100","dow":3,"room":"3414-L (Michelle)","kind":"accomp","start":"11:00","end":"12:00","code":"","title":"Michelle Accomp. Hours","instructor":"Michelle"},{"id":"wed-3414-l-michelle-1345","dow":3,"room":"3414-L (Michelle)","kind":"amp","start":"13:45","end":"17:15","code":"","title":"AMP Lessons","instructor":"Holly Palmer"},{"id":"wed-3414-m-commercial-1110","dow":3,"room":"3414-M (Commercial)","kind":"class","start":"11:10","end":"13:15","code":"MUSIC 161","title":"Introduction to Music Technology","instructor":"Mark Cross"},{"id":"wed-3414-m-commercial-1420","dow":3,"room":"3414-M (Commercial)","kind":"class","start":"14:20","end":"16:25","code":"MUSIC 265","title":"Recording Arts Workshop","instructor":"Mark Cross"},{"id":"wed-3422-0800","dow":3,"room":"3422","kind":"class","start":"08:00","end":"09:25","code":"MUSIC 217-1","title":"Musicianship","instructor":"Charlotte Wilkins"},{"id":"wed-3422-0935","dow":3,"room":"3422","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 217-2","title":"Musicianship","instructor":"Charlotte Wilkins"},{"id":"wed-3422-1245","dow":3,"room":"3422","kind":"class","start":"12:45","end":"14:10","code":"MUSIC 101","title":"Fundamentals Of Music","instructor":"Jon Titmus"},{"id":"wed-3422-1445","dow":3,"room":"3422","kind":"amp","start":"14:45","end":"16:15","code":"","title":"AMP Lessons","instructor":"Shai Golan"},{"id":"wed-3423-1110","dow":3,"room":"3423","kind":"class","start":"11:10","end":"12:35","code":"MUSIC 216-1","title":"Music Theory","instructor":"Wendy Mazon"},{"id":"wed-3423-1400","dow":3,"room":"3423","kind":"encore","start":"14:00","end":"16:00","code":"Encore","title":"Vocal Class for Beginners","instructor":"Tortell"},{"id":"wed-3424-piano-lab-1015","dow":3,"room":"3424 (Piano lab)","kind":"amp","start":"10:15","end":"12:15","code":"","title":"AMP Lessons","instructor":"Leila Nunez-Fredell"},{"id":"wed-3424-piano-lab-1720","dow":3,"room":"3424 (Piano lab)","kind":"class","start":"17:20","end":"18:45","code":"MUSIC 321-324","title":"Elementary Piano","instructor":"Jason Stoll"},{"id":"thu-3400-choir-0935","dow":4,"room":"3400 (Choir)","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 411","title":"Elementary Voice","instructor":"Garineh Avakian"},{"id":"thu-3400-choir-1110","dow":4,"room":"3400 (Choir)","kind":"class","start":"11:10","end":"13:15","code":"MUSIC 165","title":"Introduction To Recording Arts","instructor":"Mark Cross"},{"id":"thu-3400-choir-1420","dow":4,"room":"3400 (Choir)","kind":"class","start":"14:20","end":"15:45","code":"MUSIC 250, 299","title":"Music Performance Workshop / Music Honors","instructor":"Cameron Wilkins"},{"id":"thu-3400-choir-1545","dow":4,"room":"3400 (Choir)","kind":"amp","start":"15:45","end":"17:15","code":"","title":"AMP Lessons","instructor":"Cameron Wilkins"},{"id":"thu-3401-band-0935","dow":4,"room":"3401 (Band)","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 299, 650-654","title":"Beginning Guitar / Classical Guitar / Music Honors","instructor":"Bryan Fasola"},{"id":"thu-3401-band-1145","dow":4,"room":"3401 (Band)","kind":"amp","start":"11:45","end":"13:15","code":"","title":"AMP Lessons","instructor":"Joseph Dhanens"},{"id":"thu-3401-band-1345","dow":4,"room":"3401 (Band)","kind":"encore","start":"13:45","end":"15:45","code":"ENCORE","title":"Encore Singers","instructor":"Domine"},{"id":"thu-3401-band-1600","dow":4,"room":"3401 (Band)","kind":"office","start":"16:00","end":"18:35","code":"","title":"Office Hours","instructor":"Wendy Mazon"},{"id":"thu-3401-band-1850","dow":4,"room":"3401 (Band)","kind":"class","start":"18:50","end":"22:00","code":"MUSIC 299, 745, 751, 755, 765","title":"Music Honors / Symphonic Band / Wind Ensemble / Brass Ensemble / Percussion Ensemble","instructor":"Wendy Mazon"},{"id":"thu-3414-a-practice-1045","dow":4,"room":"3414-A (Practice)","kind":"amp","start":"10:45","end":"13:15","code":"","title":"AMP Lessons","instructor":"April Amante"},{"id":"thu-3414-j-lance-0830","dow":4,"room":"3414-J (Lance)","kind":"accomp","start":"08:30","end":"09:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"thu-3414-j-lance-1100","dow":4,"room":"3414-J (Lance)","kind":"accomp","start":"11:00","end":"12:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"thu-3414-j-lance-1330","dow":4,"room":"3414-J (Lance)","kind":"accomp","start":"13:30","end":"14:00","code":"","title":"Lance Lunch / Space Unavailable / Lance Accomp. Hours","instructor":""},{"id":"thu-3414-k-perc-0945","dow":4,"room":"3414-K (Perc)","kind":"amp","start":"09:45","end":"13:15","code":"","title":"AMP Lessons","instructor":"Andy Brems"},{"id":"thu-3414-l-michelle-0945","dow":4,"room":"3414-L (Michelle)","kind":"amp","start":"09:45","end":"11:15","code":"","title":"AMP Lessons","instructor":"Cameron Wilkins"},{"id":"thu-3414-l-michelle-1200","dow":4,"room":"3414-L (Michelle)","kind":"accomp","start":"12:00","end":"14:00","code":"","title":"Michelle Accomp. Hours","instructor":"Michelle"},{"id":"thu-3414-m-commercial-1420","dow":4,"room":"3414-M (Commercial)","kind":"class","start":"14:20","end":"16:25","code":"MUSIC 265","title":"Recording Arts Workshop","instructor":"Mark Cross"},{"id":"thu-3422-0800","dow":4,"room":"3422","kind":"class","start":"08:00","end":"09:25","code":"MUSIC 217","title":"Musicianship","instructor":"Charlotte Wilkins"},{"id":"thu-3422-0935","dow":4,"room":"3422","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 216-2","title":"Music Theory","instructor":"Anthony Wardzinski"},{"id":"thu-3422-1110","dow":4,"room":"3422","kind":"class","start":"11:10","end":"12:35","code":"MUSIC 216-3","title":"Music Theory","instructor":"Anthony Wardzinski"},{"id":"thu-3423-0800","dow":4,"room":"3423","kind":"class","start":"08:00","end":"09:25","code":"MUSIC 111","title":"Music Appreciation","instructor":"Bryan Fasola"},{"id":"thu-3423-1110","dow":4,"room":"3423","kind":"class","start":"11:10","end":"12:35","code":"MUSIC 101","title":"Fundamentals Of Music","instructor":"Leila Nunez-Fredell"},{"id":"thu-3423-1315","dow":4,"room":"3423","kind":"amp","start":"13:15","end":"19:15","code":"","title":"AMP Lessons","instructor":"Joseph Dhanens"},{"id":"thu-3424-piano-lab-0800","dow":4,"room":"3424 (Piano lab)","kind":"class","start":"08:00","end":"09:25","code":"MUSIC 299, 322-324, 341","title":"Elementary Piano / Intermediate Piano / Music Honors","instructor":"Alexander Zhu"},{"id":"thu-3424-piano-lab-0935","dow":4,"room":"3424 (Piano lab)","kind":"class","start":"09:35","end":"11:00","code":"MUSIC 321","title":"Elementary Piano","instructor":"Alexander Zhu"},{"id":"thu-3424-piano-lab-1145","dow":4,"room":"3424 (Piano lab)","kind":"amp","start":"11:45","end":"13:15","code":"","title":"AMP Lessons","instructor":"Cameron Wilkins"},{"id":"fri-3400-choir-0900","dow":5,"room":"3400 (Choir)","kind":"class","start":"09:00","end":"12:10","code":"MUSIC 250","title":"Music Performance Workshop","instructor":"Garineh Avakian"},{"id":"fri-3401-band-1045","dow":5,"room":"3401 (Band)","kind":"amp","start":"10:45","end":"12:15","code":"","title":"AMP Lessons","instructor":"Mishkar Nunez-Fredell"},{"id":"fri-3414-j-lance-0800","dow":5,"room":"3414-J (Lance)","kind":"accomp","start":"08:00","end":"09:30","code":"","title":"Lance Accomp. Hours","instructor":"Lance"},{"id":"fri-3422-0845","dow":5,"room":"3422","kind":"amp","start":"08:45","end":"10:45","code":"","title":"AMP Lessons","instructor":"Byron Sleugh"},{"id":"fri-3422-1245","dow":5,"room":"3422","kind":"amp","start":"12:45","end":"14:15","code":"","title":"AMP Lessons","instructor":"Michael Matsuno"}]};
@@ -1968,6 +1981,127 @@ async function clearException(baseId, date){
   await state.db.doc("exceptions/"+exKey(baseId,date)).delete();
 }
 
+/* ---------- undo ----------
+   Every save goes through state.db, so wrapping it lets each write note what it
+   replaced. Writes are grouped by the click that started them (Save change,
+   Cancel 9 dates, Reserve…), and undoing a group puts each record back as it
+   was: rewritten, or deleted if that save created it. The list is kept in this
+   browser, so a refresh doesn't lose it. */
+const UNDO_KEY = "roomCheckout.undo", UNDO_MAX = 20;
+let undoStack = [], undoCur = null, undoLabel = "", toastTimer = null;
+try { undoStack = JSON.parse(localStorage.getItem(UNDO_KEY)) || []; } catch(e){}
+function saveUndo(){ try { localStorage.setItem(UNDO_KEY, JSON.stringify(undoStack)); } catch(e){} }
+function tableOf(path){
+  const i = path.indexOf("/");
+  const m = {exceptions:state.exceptions, reservations:state.reservations, rooms:state.rooms}[path.slice(0,i)];
+  return [m, path.slice(i+1)];
+}
+function current(path){ const [m,id] = tableOf(path); const v = m && m.get(id); return v === undefined ? null : v; }
+// keep the local copy in step until the live feed catches up, so a second
+// save straight after the first records the right "before"
+function setLocal(path, v){ const [m,id] = tableOf(path); if (m) v == null ? m.delete(id) : m.set(id, v); }
+// jsonb hands keys back in its own order, so compare with keys sorted
+const canon = v => JSON.stringify(v, (k,x) => x && typeof x === "object" && !Array.isArray(x)
+  ? Object.keys(x).sort().reduce((o,key)=>(o[key]=x[key],o),{}) : x);
+const sameDoc = (a,b) => canon(a) === canon(b);
+const snapDoc = v => v == null ? null : JSON.parse(JSON.stringify(v));
+
+function noteWrite(path, before, after){
+  if (!undoCur){
+    undoCur = {label: undoLabel || "Change", at: Date.now(), writes: []};
+    undoStack.push(undoCur);
+    if (undoStack.length > UNDO_MAX) undoStack.splice(0, undoStack.length - UNDO_MAX);
+  }
+  const w = undoCur.writes.find(x => x.path === path);
+  if (w) w.after = after; else undoCur.writes.push({path, before, after});
+  setLocal(path, after);
+  saveUndo(); paintUndo();
+  showToast("Saved — " + undoCur.label, true);
+}
+function withUndo(db){
+  const wrap = (path, d) => ({...d,
+    async set(v){ const before = snapDoc(current(path)); await d.set(v); noteWrite(path, before, snapDoc(v)); },
+    async delete(){ const before = snapDoc(current(path)); await d.delete(); noteWrite(path, before, null); }
+  });
+  return {
+    raw: db,
+    doc: path => wrap(path, db.doc(path)),
+    collection(t){
+      const c = db.collection(t);
+      return {...c,
+        doc: id => wrap(t+"/"+id, db.doc(t+"/"+id)),
+        async add(v){ const r = await c.add(v); noteWrite(t+"/"+r.id, null, snapDoc(v)); return r; }};
+    }
+  };
+}
+// a click on any button starts a new group, named after what was clicked
+document.addEventListener("click", e=>{
+  const b = e.target.closest && e.target.closest("button");
+  if (!b || b.closest("#toast") || b.id === "undoBtn") return;
+  undoCur = null;
+  const item = b.closest(".item"), what = item && item.querySelector("b");
+  const f = document.getElementById("fTitle");
+  // a lesson's panel names its date in the subtitle ("AMP lesson · October 21, 2026")
+  const when = (document.getElementById("dSub").textContent.match(/[A-Z][a-z]+ \d{1,2}, \d{4}$/) || [""])[0];
+  const ctx = what ? what.textContent
+    : !drawer.classList.contains("on") ? ""
+    : (f && f.value.trim()) || [document.getElementById("dTitle").textContent, when].filter(Boolean).join(", ");
+  undoLabel = [b.textContent.trim().replace(/\s+/g," "), ctx].filter(Boolean).join(" · ");
+}, true);
+
+function paintUndo(){
+  const b = document.getElementById("undoBtn"), g = undoStack[undoStack.length-1];
+  b.classList.toggle("hidden", !(g && state.canEdit));
+  b.title = g ? `Undo “${g.label}” from ${fmtStamp(g.at)}` : "";
+  if (!state.canEdit) document.getElementById("toastUndo").classList.add("hidden");
+}
+function showToast(msg, withUndo){
+  document.getElementById("toastMsg").textContent = msg;
+  document.getElementById("toastUndo").classList.toggle("hidden", !withUndo);
+  const t = document.getElementById("toast");
+  t.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> t.classList.remove("on"), withUndo ? 10000 : 5000);
+}
+async function undoLast(){
+  const g = undoStack[undoStack.length-1];
+  if (!g || !state.canEdit || !state.db) return;
+  if (!okToReplace()) return;
+  const n = g.writes.length;
+  // edited again since, by this browser or anyone else
+  const since = g.writes.filter(w => { const c = current(w.path);
+    return !sameDoc(c, w.after) && !sameDoc(c, w.before); }).length;
+  const ask = `Undo “${g.label}” from ${fmtStamp(g.at)}?\n\n` +
+    (n === 1 ? "1 record goes back to how it was before." : `${n} records go back to how they were before.`) +
+    (since ? `\n\n${n === 1 ? "It has" : since === 1 ? "One of them has" : since + " of them have"} been changed again since then, ` +
+      `and undoing will replace that newer change too.` : "");
+  if (!confirm(ask)) return;
+  closeDrawer();
+  const raw = state.db.raw;
+  for (let i = g.writes.length - 1; i >= 0; i--){
+    const w = g.writes[i];
+    try { if (w.before == null) await raw.doc(w.path).delete(); else await raw.doc(w.path).set(w.before); }
+    catch(e){
+      saveUndo(); paintUndo();
+      return showToast("Could not finish undoing. If you were signed in, your session may have expired — try Undo again.", false);
+    }
+    setLocal(w.path, w.before);
+    g.writes.splice(i, 1);           // done, so a retry after a failure picks up the rest
+  }
+  undoStack.pop(); undoCur = null;
+  saveUndo(); paintUndo(); render();
+  showToast("Undone — " + g.label, false);
+}
+document.getElementById("undoBtn").onclick = undoLast;
+document.getElementById("toastUndo").onclick = undoLast;
+document.addEventListener("keydown", e=>{
+  if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== "z") return;
+  // inside a field, Ctrl+Z belongs to the typing
+  if (e.target.closest && e.target.closest("input,textarea,select,[contenteditable]")) return;
+  if (!undoStack.length || !state.canEdit) return;
+  e.preventDefault(); undoLast();
+});
+
 /* ---------- export ---------- */
 function buildCSV(){
   const days = state.view==="month"
@@ -2109,7 +2243,7 @@ function setSignedIn(on, email){
   role.title = on ? "Signed in as "+email : "Sign in to reserve rooms and mark changes.";
   authBtn.textContent = on ? "Sign out" : "Sign in to edit";
   document.getElementById("newBtn").classList.toggle("hidden", !on);
-  render();
+  paintUndo(); render();
 }
 
 /* sign-in dialog */
@@ -2173,7 +2307,7 @@ authBtn.onclick = async ()=>{
     return;
   }
   sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
-  state.db = makeDb(sb);
+  state.db = withUndo(makeDb(sb));
 
   const {data:{session}} = await sb.auth.getSession();
   setSignedIn(!!session, session && session.user && session.user.email);

@@ -136,6 +136,16 @@ rather than stamping a pile of per-date exceptions — *This and later* splits i
 into two, exactly as Outlook does, leaving earlier dates alone. *Reset* undoes
 per-date changes at whatever scope is selected.
 
+**Undo.** Every save shows a note in the bottom corner with an **Undo** button,
+and the **Undo** button in the toolbar steps back through your last 20 saves
+(⌘Z or Ctrl+Z does the same when you're not typing in a field). Undo puts back
+exactly what that save replaced — a series move restores every date it touched,
+including any that had already been changed, and removes the reservation it
+created. It asks first, and warns if someone has changed those records again
+since. The list lives in the browser the save was made from, so it survives a
+refresh but isn't shared between computers; for anything older, *Changes* still
+has every record, and the nightly backups go back further.
+
 **Pop out.** On a computer, *Pop out* at the top of any panel moves it beside the
 calendar instead of over it, so the calendar stays visible and scrollable while
 you review or edit. The block you're editing is outlined, and clicking another
