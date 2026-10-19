@@ -111,7 +111,11 @@ way Outlook does:
 
 **Changing the day.** With *This date* selected the panel offers a date
 picker; with *This and later* or *Every date* it offers the days of the week, so
-a Wednesday lesson can become a Thursday one from a given week on. As you change
+a Wednesday lesson can become a Thursday one from a given week on. With *This
+and later*, a **Starting** date appears once you change the days; it defaults to
+the new day in the same week as the lesson you clicked, so moving Wednesday the
+21st to Mondays starts on Monday the 19th, and it can be set earlier or later.
+The old pattern stops wherever the new one begins. As you change
 the day, time or room, the panel checks whether that room is free and lists any
 overlaps. Moving a spreadsheet class books its new days as a reservation and
 stands the old dates down; those show in *Changes* as **Moved**, not as
