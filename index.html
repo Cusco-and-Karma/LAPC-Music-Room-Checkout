@@ -1076,6 +1076,11 @@ async function relocate(o, scope, a){
     return true;
   }
 
+  // "This and later" may start the new pattern before the clicked date, so the
+  // old one stops at whichever comes first.
+  const from = scope === "all" ? null : a.newFrom || o.date;
+  const cut = scope === "all" ? null : (from < o.date ? from : o.date);
+
   if (o.src === "res"){
     const r = o.res;
     const days = a.newDays.length === 7 ? [] : a.newDays;
@@ -1084,21 +1089,23 @@ async function relocate(o, scope, a){
     if (scope === "all"){
       await state.db.doc("reservations/"+o.resId).set({...r, ...upd});
     } else {
-      const dayBefore = addDays(o.date, -1);
-      await state.db.collection("reservations").add({...r, ...upd, dateStart: o.date, at: Date.now()});
+      const dayBefore = addDays(cut, -1);
+      await state.db.collection("reservations").add({...r, ...upd, dateStart: from, at: Date.now()});
       if (dayBefore < r.dateStart) await state.db.doc("reservations/"+o.resId).delete();
       else await state.db.doc("reservations/"+o.resId).set({...r, dateEnd: dayBefore});
     }
     return true;
   }
 
-  const n = a.targets().length;
-  if (!confirm(`Move ${n} date${n===1?"":"s"} to ${dayWords}?`)) return false;
+  const list = scope === "all" ? a.targets() : seriesOccurrences(o).filter(x => x.date >= cut);
+  const n = list.length;
+  const when = scope === "all" ? "" : `, starting ${shortDate(from)}`;
+  if (!confirm(`Move ${n} date${n===1?"":"s"} to ${dayWords}${when}?`)) return false;
   const span = seriesSpan(o);
   await state.db.collection("reservations").add({...fields, rooms:[a.rm], days: a.newDays,
-    dateStart: scope === "all" ? span.start : o.date, dateEnd: span.end, at: Date.now()});
+    dateStart: scope === "all" ? span.start : from, dateEnd: span.end, at: Date.now()});
   return a.applyToDates((date, id) => writeException(id, date,
-    {status:"cancelled", note:`Moved to ${dayWords}`, movedTo: dayWords}), "Move", {asked:true});
+    {status:"cancelled", note:`Moved to ${dayWords}`, movedTo: dayWords}), "Move", {asked:true, list});
 }
 const scopeDates = (o, scope) => {
   const all = seriesOccurrences(o);
@@ -1169,6 +1176,8 @@ function openOccurrence(o){
     <div class="field hidden" id="mDaysWrap"><label>Day of the week</label>
       <div class="chips" id="mDays">${[1,2,3,4,5,6,0].map(i=>
         `<button type="button" class="chip wd" data-d="${i}" aria-pressed="${seriesWeekdays(o).includes(i)}">${DAYNAMES[i].slice(0,3)}</button>`).join("")}</div></div>
+    <div class="field hidden" id="mFromWrap"><label for="mFrom">Starting</label>
+      <input type="date" id="mFrom" value="${o.date}"></div>
     <div class="row">
       <div class="field"><label for="mStart">New start</label><input type="time" id="mStart" value="${toHM(o.allDay?8*60:o.start)}"></div>
       <div class="field"><label for="mEnd">New end</label><input type="time" id="mEnd" value="${toHM(o.allDay?17*60:o.end)}"></div>
@@ -1193,10 +1202,26 @@ function openOccurrence(o){
   const $ = id => document.getElementById(id);
   let scope = "one";
   const targets = () => scopeDates(o, scope);
+  /* A move to other weekdays starts the new pattern in the same week by
+     default, so Wednesday the 21st -> Mondays begins on Monday the 19th
+     rather than skipping to the 26th. Once someone types a date, it stays. */
+  let fromTouched = false;
+  function defaultFrom(){
+    const days = pickedDays();
+    if (!days.length) return o.date;
+    const sun = weekStart(o.date);
+    return days.map(d => addDays(sun, d)).sort()[0];
+  }
+  function syncFrom(){
+    const moving = scope === "following" && pickedDays().join() !== seriesWeekdays(o).join();
+    $("mFromWrap").classList.toggle("hidden", !moving);
+    if (!fromTouched) $("mFrom").value = moving ? defaultFrom() : o.date;
+  }
   function paintDayField(){
     const series = scope !== "one";
     $("mDateWrap").classList.toggle("hidden", series);
     $("mDaysWrap").classList.toggle("hidden", !series);
+    syncFrom();
     paintConflicts();
   }
   // Where the edited lesson would land, as a reservation-shaped range, so the
@@ -1206,7 +1231,7 @@ function openOccurrence(o){
     const days = one ? [] : pickedDays();
     const span = seriesSpan(o);
     return {rooms:[$("mRoom").value], days,
-      dateStart: one ? ($("mDate").value || o.date) : scope === "all" ? span.start : o.date,
+      dateStart: one ? ($("mDate").value || o.date) : scope === "all" ? span.start : ($("mFrom").value || o.date),
       dateEnd:   one ? ($("mDate").value || o.date) : span.end,
       timeStart: $("mStart").value, timeEnd: $("mEnd").value};
   }
@@ -1255,8 +1280,9 @@ function openOccurrence(o){
   paintDayField();
   $("mDays").querySelectorAll(".chip").forEach(b => b.onclick = ()=>{
     b.setAttribute("aria-pressed", b.getAttribute("aria-pressed")==="true" ? "false" : "true");
-    paintConflicts();
+    syncFrom(); paintConflicts();
   });
+  $("mFrom").addEventListener("change", ()=>{ fromTouched = true; paintConflicts(); });
   ["mDate","mStart","mEnd","mRoom"].forEach(id => $(id).addEventListener("change", paintConflicts));
   if (repeats){
     $("mScope").querySelectorAll(".chip").forEach(b => b.onclick = ()=>{
@@ -1267,7 +1293,7 @@ function openOccurrence(o){
   }
 
   async function applyToDates(fn, verb, opts){
-    const list = targets();
+    const list = (opts && opts.list) || targets();
     if (list.length > 1 && !(opts && opts.asked) && !confirm(`${verb} ${list.length} dates?`)) return false;
     const btns = [...document.querySelectorAll("#dFoot .btn")];
     btns.forEach(b => b.disabled = true);
@@ -1300,10 +1326,14 @@ function openOccurrence(o){
     const newDays = scope === "one" ? curDays : pickedDays();
     if (scope !== "one" && !newDays.length) return flash("Pick at least one day of the week.");
     const dayMoved = scope === "one" ? newDate !== o.date : newDays.join() !== curDays.join();
+    const newFrom = scope === "following" && dayMoved ? ($("mFrom").value || o.date) : o.date;
+    const span = seriesSpan(o);
+    if (newFrom > span.end) return flash(`The new pattern has to start by ${shortDate(span.end)}.`);
+    if (o.src === "base" && newFrom < TERM.start) return flash(`The new pattern can't start before the term (${shortDate(TERM.start)}).`);
 
     try {
       if (dayMoved){
-        const ok = await relocate(o, scope, {newDate, newDays, st, en, rm, ti, pe, n, applyToDates, targets});
+        const ok = await relocate(o, scope, {newDate, newDays, newFrom, st, en, rm, ti, pe, n, applyToDates, targets});
         if (ok) closeDrawer();
         return;
       }
