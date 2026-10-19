@@ -1045,6 +1045,61 @@ function seriesOccurrences(o){
   return out;
 }
 const seriesDates = o => seriesOccurrences(o).map(x => x.date);
+const seriesWeekdays = o => [...new Set(seriesDates(o).map(dow))].sort();
+function seriesSpan(o){
+  if (o.src === "res" && o.res) return {start:o.res.dateStart, end:o.res.dateEnd};
+  return {start:TERM.start, end:TERM.end};
+}
+
+/* Moving a lesson to a different day. A reservation is simply rewritten (or
+   split, for "this and later"). A spreadsheet class cannot be rewritten, so
+   the new days are booked as a reservation first, then the old dates are
+   stood down; doing it in that order means an interruption leaves a
+   duplicate on the grid rather than a lesson silently gone. */
+async function relocate(o, scope, a){
+  const dayWords = a.newDays.map(d => DAYNAMES[d] + "s").join(" & ");
+  const fields = {title: a.ti || o.title, person: a.pe, kind: o.kind, code: o.code || "",
+    timeStart: a.st, timeEnd: a.en, note: a.n, cancelled: false, allDay: false};
+
+  if (scope === "one"){
+    if (o.src === "res" && o.res.dateStart === o.res.dateEnd){
+      const r = o.res;
+      await state.db.doc("reservations/"+o.resId).set({...r, ...fields, note: a.n || r.note,
+        dateStart: a.newDate, dateEnd: a.newDate, days: [],
+        rooms: r.rooms.map(x => x === o.origRoom ? a.rm : x)});
+      return true;
+    }
+    await state.db.collection("reservations").add({...fields, rooms:[a.rm],
+      dateStart: a.newDate, dateEnd: a.newDate, days: [], at: Date.now()});
+    await writeException(o.srcId, o.date, {status:"cancelled", note:`Moved to ${shortDate(a.newDate)}`,
+      movedTo: a.newDate});
+    return true;
+  }
+
+  if (o.src === "res"){
+    const r = o.res;
+    const days = a.newDays.length === 7 ? [] : a.newDays;
+    const upd = {...fields, note: a.n || r.note, days,
+      rooms: r.rooms.map(x => x === o.origRoom ? a.rm : x)};
+    if (scope === "all"){
+      await state.db.doc("reservations/"+o.resId).set({...r, ...upd});
+    } else {
+      const dayBefore = addDays(o.date, -1);
+      await state.db.collection("reservations").add({...r, ...upd, dateStart: o.date, at: Date.now()});
+      if (dayBefore < r.dateStart) await state.db.doc("reservations/"+o.resId).delete();
+      else await state.db.doc("reservations/"+o.resId).set({...r, dateEnd: dayBefore});
+    }
+    return true;
+  }
+
+  const n = a.targets().length;
+  if (!confirm(`Move ${n} date${n===1?"":"s"} to ${dayWords}?`)) return false;
+  const span = seriesSpan(o);
+  await state.db.collection("reservations").add({...fields, rooms:[a.rm], days: a.newDays,
+    dateStart: scope === "all" ? span.start : o.date, dateEnd: span.end, at: Date.now()});
+  return a.applyToDates((date, id) => writeException(id, date,
+    {status:"cancelled", note:`Moved to ${dayWords}`, movedTo: dayWords}), "Move", {asked:true});
+}
 const scopeDates = (o, scope) => {
   const all = seriesOccurrences(o);
   if (scope === "all") return all;
@@ -1109,6 +1164,11 @@ function openOccurrence(o){
         `<option value="${k}"${o.kind===k?" selected":""}>${KINDLABEL[k]}</option>`).join("")}</select></div>`;
   body += `
     <div class="sec-t" id="mEditHead">Change this date only</div>
+    <div class="field" id="mDateWrap"><label for="mDate">Date</label>
+      <input type="date" id="mDate" value="${o.date}"></div>
+    <div class="field hidden" id="mDaysWrap"><label>Day of the week</label>
+      <div class="chips" id="mDays">${[1,2,3,4,5,6,0].map(i=>
+        `<button type="button" class="chip wd" data-d="${i}" aria-pressed="${seriesWeekdays(o).includes(i)}">${DAYNAMES[i].slice(0,3)}</button>`).join("")}</div></div>
     <div class="row">
       <div class="field"><label for="mStart">New start</label><input type="time" id="mStart" value="${toHM(o.allDay?8*60:o.start)}"></div>
       <div class="field"><label for="mEnd">New end</label><input type="time" id="mEnd" value="${toHM(o.allDay?17*60:o.end)}"></div>
@@ -1120,7 +1180,8 @@ function openOccurrence(o){
     <div class="field"><label for="mRoom">Room</label><select id="mRoom">${
       ROOMS.map(r=>`<option${r===o.room?" selected":""}>${esc(r)}</option>`).join("")}</select></div>
     <div class="field"><label for="mNote">Note (shown on the block)</label>
-      <input type="text" id="mNote" value="${esc(o.note)}" placeholder="e.g. moved for guest clinician"></div>`;
+      <input type="text" id="mNote" value="${esc(o.note)}" placeholder="e.g. moved for guest clinician"></div>
+    <div id="mConflict"></div>`;
   const foot = `
     <button class="btn primary" id="saveMove">Save change</button>
     ${o.cancelled ? `<button class="btn" id="restore">Restore</button>`
@@ -1132,7 +1193,42 @@ function openOccurrence(o){
   const $ = id => document.getElementById(id);
   let scope = "one";
   const targets = () => scopeDates(o, scope);
+  function paintDayField(){
+    const series = scope !== "one";
+    $("mDateWrap").classList.toggle("hidden", series);
+    $("mDaysWrap").classList.toggle("hidden", !series);
+    paintConflicts();
+  }
+  // Where the edited lesson would land, as a reservation-shaped range, so the
+  // same overlap check the booking form uses can say whether that slot is free.
+  function proposed(){
+    const one = scope === "one";
+    const days = one ? [] : pickedDays();
+    const span = seriesSpan(o);
+    return {rooms:[$("mRoom").value], days,
+      dateStart: one ? ($("mDate").value || o.date) : scope === "all" ? span.start : o.date,
+      dateEnd:   one ? ($("mDate").value || o.date) : span.end,
+      timeStart: $("mStart").value, timeEnd: $("mEnd").value};
+  }
+  const pickedDays = () => [...$("mDays").querySelectorAll('[aria-pressed="true"]')].map(b=>+b.dataset.d).sort();
+  const ownIds = new Set(seriesOccurrences(o).map(x => x.srcId));
+  function paintConflicts(){
+    const box = $("mConflict"); if (!box) return;
+    const r = proposed();
+    if (!r.timeStart || !r.timeEnd || toMin(r.timeEnd) <= toMin(r.timeStart) || (scope!=="one" && !r.days.length)){
+      box.innerHTML = ""; return;
+    }
+    const hits = findConflicts(r, x => ownIds.has(x.srcId));
+    box.innerHTML = hits.length
+      ? `<div class="note warn"><strong>${hits.length} overlap${hits.length>1?"s":""}</strong> at the new time.
+         <div style="margin-top:6px;font-family:var(--font-m);font-size:11.5px;line-height:1.5">
+         ${hits.slice(0,4).map(h=>`${shortDate(h.date)} · ${h.room.split(" ")[0]} · ${esc(h.title)} ${h.allDay?"(all day)":`${fmt12(h.start)}–${fmt12(h.end)}`}`).join("<br>")}
+         ${hits.length>4?`<br>+ ${hits.length-4} more`:""}</div></div>`
+      : `<div class="note" style="color:var(--ok)">That room is free at the new time.</div>`;
+  }
+
   function paintScope(){
+    paintDayField();
     const n = targets().length;
     const note = $("mScopeNote");
     if (!note) return;
@@ -1156,6 +1252,12 @@ function openOccurrence(o){
     const ce = $("clearEx");
     if (ce) ce.textContent = scope === "one" ? "Reset to master" : `Reset ${n} dates`;
   }
+  paintDayField();
+  $("mDays").querySelectorAll(".chip").forEach(b => b.onclick = ()=>{
+    b.setAttribute("aria-pressed", b.getAttribute("aria-pressed")==="true" ? "false" : "true");
+    paintConflicts();
+  });
+  ["mDate","mStart","mEnd","mRoom"].forEach(id => $(id).addEventListener("change", paintConflicts));
   if (repeats){
     $("mScope").querySelectorAll(".chip").forEach(b => b.onclick = ()=>{
       $("mScope").querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed","false"));
@@ -1164,9 +1266,9 @@ function openOccurrence(o){
     paintScope();
   }
 
-  async function applyToDates(fn, verb){
+  async function applyToDates(fn, verb, opts){
     const list = targets();
-    if (list.length > 1 && !confirm(`${verb} ${list.length} dates?`)) return false;
+    if (list.length > 1 && !(opts && opts.asked) && !confirm(`${verb} ${list.length} dates?`)) return false;
     const btns = [...document.querySelectorAll("#dFoot .btn")];
     btns.forEach(b => b.disabled = true);
     try {
@@ -1193,24 +1295,36 @@ function openOccurrence(o){
     const renamed = (ti !== o.origTitle || pe !== o.origPerson);
     const changed = (st!==toHM(o.origStart) || en!==toHM(o.origEnd) || rm!==o.origRoom) || renamed;
 
-    // Editing a whole checkout is a change to the checkout itself, not a pile
-    // of per-date exceptions; "this and later" splits it in two, as Outlook does.
-    if (o.src === "res" && scope !== "one" && changed){
-      const r = o.res;
-      if (scope === "all"){
-        await state.db.doc("reservations/"+o.resId)
-          .set({...r, timeStart:st, timeEnd:en, note:n || r.note,
-                rooms: r.rooms.map(x => x === o.origRoom ? rm : x)});
-      } else {
-        const dayBefore = addDays(o.date, -1);
-        await state.db.collection("reservations").add({...r, dateStart:o.date,
-          timeStart:st, timeEnd:en, note:n || r.note,
-          rooms: r.rooms.map(x => x === o.origRoom ? rm : x), at: Date.now()});
-        if (dayBefore < r.dateStart) await state.db.doc("reservations/"+o.resId).delete();
-        else await state.db.doc("reservations/"+o.resId).set({...r, dateEnd:dayBefore});
+    const curDays = seriesWeekdays(o);
+    const newDate = scope === "one" ? ($("mDate").value || o.date) : o.date;
+    const newDays = scope === "one" ? curDays : pickedDays();
+    if (scope !== "one" && !newDays.length) return flash("Pick at least one day of the week.");
+    const dayMoved = scope === "one" ? newDate !== o.date : newDays.join() !== curDays.join();
+
+    try {
+      if (dayMoved){
+        const ok = await relocate(o, scope, {newDate, newDays, st, en, rm, ti, pe, n, applyToDates, targets});
+        if (ok) closeDrawer();
+        return;
       }
-      closeDrawer(); return;
-    }
+      // Editing a whole reservation is a change to the reservation itself, not a
+      // pile of per-date exceptions; "this and later" splits it in two, as Outlook does.
+      if (o.src === "res" && scope !== "one" && changed){
+        const r = o.res;
+        const fields = {timeStart:st, timeEnd:en, note:n || r.note,
+          title: ti || r.title, person: pe,
+          rooms: r.rooms.map(x => x === o.origRoom ? rm : x)};
+        if (scope === "all"){
+          await state.db.doc("reservations/"+o.resId).set({...r, ...fields});
+        } else {
+          const dayBefore = addDays(o.date, -1);
+          await state.db.collection("reservations").add({...r, ...fields, dateStart:o.date, at: Date.now()});
+          if (dayBefore < r.dateStart) await state.db.doc("reservations/"+o.resId).delete();
+          else await state.db.doc("reservations/"+o.resId).set({...r, dateEnd:dayBefore});
+        }
+        closeDrawer(); return;
+      }
+    } catch(e){ return flash("Could not save. If you were signed in, your session may have expired."); }
 
     const ok = await applyToDates((date, id) => writeException(id, date, {
       status: changed ? "moved" : (n ? "noted" : "clear"), room:rm, start:st, end:en, note:n,
@@ -1406,13 +1520,15 @@ function openNew(seed, editId){
     closeDrawer();
   };
 }
-function findConflicts(r, ignoreResId){
+function findConflicts(r, ignore){
+  // ignore: a reservation id, or a test for occurrences that are the thing itself
+  const skip = typeof ignore === "function" ? ignore : (o => ignore && o.resId === ignore);
   const out=[]; let d=r.dateStart, guard=0;
   while (d <= r.dateEnd && guard++ < 400){
     if (!r.days.length || r.days.includes(dow(d))){
       for (const o of occurrencesOn(d)){
         if (o.cancelled || !r.rooms.includes(o.room)) continue;
-        if (ignoreResId && o.resId === ignoreResId) continue;   // do not clash with itself
+        if (skip(o)) continue;   // do not clash with itself
         if (o.start < toMin(r.timeEnd) && toMin(r.timeStart) < o.end)
           out.push({date:d, room:o.room, title:o.title, start:o.start, end:o.end, allDay:o.allDay});
       }
@@ -1660,7 +1776,7 @@ function changeStamp(row){
     return parts.join(" \u00b7 ");
   }
   const e = row.e, when = state.stamps.get("ex:"+row.id) || e.at;
-  const verb = e.status === "cancelled" ? "Cancelled" : e.status === "moved" ? "Changed" : "Noted";
+  const verb = e.movedTo ? "Moved" : e.status === "cancelled" ? "Cancelled" : e.status === "moved" ? "Changed" : "Noted";
   return when ? `${verb} ${fmtStamp(when)}` : "";
 }
 
@@ -1668,7 +1784,7 @@ function changeStamp(row){
 const CHANGEKINDS = [["reservation","Reservations"],["change","Changes"],["cancelled","Cancellations"]];
 const changeKindOf = row =>
   row.t === "res" ? (row.r.cancelled ? "cancelled" : "reservation")
-                  : (row.e.status === "cancelled" ? "cancelled" : "change");
+                  : (row.e.status === "cancelled" && !row.e.movedTo ? "cancelled" : "change");
 
 function openChanges(){
   const all = [];
@@ -1700,7 +1816,7 @@ function openChanges(){
         ${r.cancelled && state.canEdit ? `<button class="btn ghost restore-res" data-res="${esc(row.id)}"
           style="font-size:12px;padding:3px 8px;align-self:center">Restore</button>` : ``}</div>`;
     }
-    const e=row.e, lbl = e.status==="cancelled"?"Cancelled":e.status==="moved"?"Changed":"Note";
+    const e=row.e, lbl = e.movedTo?"Moved":e.status==="cancelled"?"Cancelled":e.status==="moved"?"Changed":"Note";
     const name = baseTitle(e.baseId);
     return `<button class="item" data-goto="${e.date}" data-src="${esc(e.baseId||"")}">
       <span class="bar-c" style="background:var(--${e.status==="cancelled"?"line-2":"warn"})"></span>
@@ -1763,6 +1879,7 @@ async function writeException(baseId, date, patch){
   const doc = {baseId, date, status:patch.status, note:patch.note||"", at:Date.now()};
   if (patch.title)  doc.title  = patch.title;
   if (patch.person) doc.person = patch.person;
+  if (patch.movedTo) doc.movedTo = patch.movedTo;
   if (patch.status === "moved"){ doc.room=patch.room; doc.start=patch.start; doc.end=patch.end; }
   await state.db.doc("exceptions/"+id).set(doc);
 }

@@ -109,6 +109,15 @@ way Outlook does:
 | **This and later** | this date through the end of the series |
 | **Every date** | the whole series |
 
+**Changing the day.** With *This date* selected the panel offers a date
+picker; with *This and later* or *Every date* it offers the days of the week, so
+a Wednesday lesson can become a Thursday one from a given week on. As you change
+the day, time or room, the panel checks whether that room is free and lists any
+overlaps. Moving a spreadsheet class books its new days as a reservation and
+stands the old dates down; those show in *Changes* as **Moved**, not as
+cancellations. Moving a reservation simply rewrites it, or splits it in two for
+*This and later*.
+
 The panel says how many dates are affected and which weekdays before you
 commit, and anything touching more than one date asks to confirm. A class the
 spreadsheet lists on two weekdays counts as one series, so cancelling MUSIC
