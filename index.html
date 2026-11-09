@@ -201,9 +201,15 @@ input[type=text]::placeholder{color:var(--ink-3)}
   border-bottom:1px solid var(--accent-line);font-size:12.5px;line-height:1.5;
   display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .findnote>strong{color:var(--accent);font-family:var(--font-m);flex:none}
-.findnote .hits{display:flex;flex-wrap:wrap;gap:3px 16px}
-.findnote .hit{font-size:12px;color:var(--ink-2)}
+.findnote .hits{display:flex;flex-wrap:wrap;gap:3px 16px;flex:1 1 320px;min-width:0}
+.findnote .hit{font:inherit;font-size:12px;color:var(--ink-2);background:none;border:0;padding:0;
+  cursor:pointer;text-align:left}
+.findnote .hit:hover{text-decoration:underline}
 .findnote .hit b{font-weight:700;color:var(--ink)}
+.findnote .fnav{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto}
+.findnote .fnav .btn{font-size:12px;padding:3px 9px}
+.findnote .fnav .pos{font-size:12px;color:var(--ink-2);font-family:var(--font-m);white-space:nowrap}
+.findnote .fnav select{font-size:12px;padding:3px 6px;max-width:260px}
 /* ---------- month views ---------- */
 .month{display:flex;flex-direction:column;min-height:100%}
 .m-head{display:grid;grid-template-columns:repeat(7,1fr);position:sticky;top:0;z-index:20;
@@ -393,7 +399,9 @@ input[type=text]::placeholder{color:var(--ink-3)}
 
   .termnote,.findnote{padding:7px 14px;font-size:12px}
   .findnote{flex-direction:column;gap:4px}
-  .findnote .hits{flex-direction:column;gap:2px}
+  .findnote .hits{flex-direction:column;gap:2px;flex-basis:auto}
+  .findnote .fnav{margin-left:0}
+  .findnote .fnav select{max-width:100%;flex:1 1 100%}
 
   /* the drawer reads better as a bottom sheet on a phone */
   .drawer{top:auto;left:0;right:0;bottom:0;width:auto;height:88vh;height:88dvh;
@@ -665,19 +673,95 @@ const searchable = o => [o.room,o.title,o.code,o.person,KINDLABEL[o.kind]]
   .map(v=>String(v||"").toLowerCase()).join(" ~ ");
 const matchQ = o => !state.q || searchable(o).includes(state.q.toLowerCase());
 
-/* Where a search term sits in the weekly schedule, so "216-3" answers which
-   room, which days and what time without paging through the week. */
-function weeklyMatches(q){
-  const needle = q.toLowerCase();
-  const hits = BASE.filter(b => [b.room,b.title,b.code,b.instructor]
-    .map(v=>String(v||"").toLowerCase()).join(" ~ ").includes(needle));
-  const groups = new Map();
-  for (const b of hits){
-    const key = [b.code,b.title,b.instructor,b.room,b.start,b.end].join("|");
-    if (!groups.has(key)) groups.set(key, Object.assign({}, b, {days:[]}));
-    groups.get(key).days.push(b.dow);
+/* ---------- search ----------
+   A search narrows every view to what matches, so the matches have to be easy
+   to reach: every date one falls on, in the room it is really in after any
+   moves, grouped into series. A new search, or a switch of view, that leaves
+   nothing matching on screen goes to the next match, and in Week or Month to
+   its room. Previous / Next and the date list step through the rest. */
+function searchHits(){
+  if (!state.q) return [];
+  let from = TERM.start, to = TERM.end;
+  for (const r of state.reservations.values()){
+    if (r.cancelled) continue;
+    if (r.dateStart < from) from = r.dateStart;
+    if (r.dateEnd > to) to = r.dateEnd;
   }
-  return [...groups.values()].sort((a,b)=>a.days[0]-b.days[0] || a.start.localeCompare(b.start));
+  // a mistyped year on a reservation shouldn't send this through decades
+  if (from < addDays(TERM.start, -366)) from = addDays(TERM.start, -366);
+  if (to > addDays(TERM.end, 366)) to = addDays(TERM.end, 366);
+  const hits = [];
+  for (let d = from; d <= to; d = addDays(d, 1))
+    for (const o of occurrencesOn(d))
+      if (!o.cancelled && matchKind(o) && matchQ(o)) hits.push(o);
+  return hits;   // by date, then time
+}
+// the same class on its several weekdays is one series; a moved date is its own
+function hitSeries(hits){
+  const groups = new Map(), today = iso(new Date());
+  for (const o of hits){
+    const k = [o.code, o.title, o.person, o.room, o.start, o.end, o.allDay].join("|");
+    if (!groups.has(k)) groups.set(k, {o, days:new Set(), dates:[]});
+    const g = groups.get(k);
+    g.days.add(dow(o.date)); g.dates.push(o.date);
+  }
+  // what's coming up first; series that are over go last
+  const next = g => g.dates.find(d => d >= today) || "~" + g.dates[g.dates.length-1];
+  return [...groups.values()].sort((a,b) =>
+    next(a) < next(b) ? -1 : next(a) > next(b) ? 1 : a.o.start - b.o.start);
+}
+const roomView = () => state.view === "week" || (state.view === "month" && state.monthMode === "room");
+// one step of Previous / Next: a day, a week of one room, or a month (of one room in Month by room)
+function hitStop(date, room){
+  if (state.view === "day") return date;
+  const span = state.view === "week" ? weekStart(date) : date.slice(0,7);
+  return roomView() ? span + "|" + room : span;
+}
+function hitStops(hits){
+  const seen = new Map();
+  for (const h of hits){
+    if (!roomView() && isHidden(h.room)) continue;   // Day and the all-room months skip hidden rooms
+    const k = hitStop(h.date, h.room);
+    if (!seen.has(k)) seen.set(k, h);
+  }
+  return [...seen.entries()].map(([k,h]) => ({k, h}));
+}
+function goToHit(h){
+  state.date = h.date;
+  if (roomView()){ state.weekRoom = h.room; document.getElementById("weekRoom").value = h.room; }
+  render();
+  showFirstMatch();
+}
+// bring the first match on screen, across the room columns and down the hours
+function showFirstMatch(){
+  const el = document.querySelector("#grid .ev, #grid .m-ev, #grid .ag-item");
+  if (el) el.scrollIntoView({block:"center", inline:"center"});
+}
+function revealSearch(){
+  const stops = hitStops(searchHits());
+  if (!stops.length) return;
+  const here = hitStop(state.date, state.weekRoom);
+  if (stops.some(s => s.k === here)) return showFirstMatch();
+  // in Week or Month another room in the same span comes first, then the next match along
+  const span = hitStop(state.date, "").split("|")[0];
+  const t = stops.find(s => s.k.split("|")[0] === span)
+         || stops.find(s => s.h.date >= state.date) || stops[stops.length-1];
+  goToHit(t.h);
+}
+function stepHit(dir){
+  const stops = hitStops(searchHits());
+  if (!stops.length) return;
+  const here = hitStop(state.date, state.weekRoom);
+  let i = stops.findIndex(s => s.k === here);
+  if (i === -1){
+    // not on a match: the first one after what's showing, or the last one before it
+    i = dir > 0 ? stops.findIndex(s => s.k > here) : stops.map(s => s.k < here).lastIndexOf(true);
+    if (i === -1) return;
+  } else {
+    i += dir;
+    if (i < 0 || i >= stops.length) return;
+  }
+  goToHit(stops[i].h);
 }
 const matchKind = o => { const sel = state.kinds; if (!sel.size) return true;
   return sel.has(o.kind) || (sel.has("__cancelled") && o.cancelled); };
@@ -858,17 +942,48 @@ function paintSearchNote(){
   const el = document.getElementById("findnote");
   if (!state.q){ el.classList.add("hidden"); return; }
   el.classList.remove("hidden");
-  const hits = weeklyMatches(state.q);
+  const hits = searchHits();
   if (!hits.length){
-    el.innerHTML = `<strong>${esc(state.q)}</strong> &mdash; no class matches.
-      Any reservations or events matching it still show below.`;
+    el.innerHTML = `<strong>${esc(state.q)}</strong> &mdash; nothing matches this, on any date.`;
     return;
   }
-  el.innerHTML = `<strong>${esc(state.q)}</strong><span class="hits">${hits.map(h=>`<span class="hit">
-      <b>${esc([h.code,h.title].filter(Boolean).join(" \u2013 "))}</b>
-      ${esc(h.days.map(d=>DAYNAMES[d].slice(0,3)).join(" & "))}
-      ${fmt12(toMin(h.start))}&ndash;${fmt12(toMin(h.end))}
-      &middot; ${esc(h.room.split(" ")[0])}${h.instructor?" &middot; "+esc(h.instructor):""}</span>`).join("")}</span>`;
+  const series = hitSeries(hits), CAP = 6;
+  const stops = hitStops(hits), at = stops.findIndex(s => s.k === hitStop(state.date, state.weekRoom));
+  const unit = state.view === "day" ? "date" : state.view;
+  const byDate = new Map();
+  hits.forEach(h => { if (!byDate.has(h.date)) byDate.set(h.date, []); byDate.get(h.date).push(h); });
+  const dates = [...byDate.keys()];
+  const label = d => { const l = byDate.get(d), h = l[0];
+    return `${DAYNAMES[dow(d)].slice(0,3)} ${shortDate(d)} — ${h.title}, ` +
+      `${h.allDay ? "all day" : fmt12(h.start)}, ${h.room.split(" ")[0]}${l.length > 1 ? ` (+${l.length-1} more)` : ""}`; };
+  el.innerHTML = `<strong>${esc(state.q)}</strong>
+    <span class="hits">${series.slice(0, CAP).map((g,i) => { const o = g.o, n = g.dates.length;
+      return `<button type="button" class="hit" data-g="${i}" title="Go to the next date of this">
+        <b>${esc([o.code, o.title].filter(Boolean).join(" – "))}</b>
+        ${esc([...g.days].sort().map(d => DAYNAMES[d].slice(0,3)).join(" & "))}
+        ${o.allDay ? "all day" : `${fmt12(o.start)}&ndash;${fmt12(o.end)}`}
+        &middot; ${esc(o.room.split(" ")[0])}${o.person ? " &middot; " + esc(o.person) : ""}
+        &middot; ${esc(n === 1 ? shortDate(g.dates[0]) : `${shortDate(g.dates[0])}–${shortDate(g.dates[n-1])}`)}
+        (${n})</button>`; }).join("")}
+      ${series.length > CAP ? `<span class="hit">+${series.length - CAP} more</span>` : ""}</span>
+    <span class="fnav">
+      <button type="button" class="btn" id="fPrev">&lsaquo; Previous</button>
+      <span class="pos">${at >= 0 ? `${unit} ${at+1} of ${stops.length}`
+        : `${stops.length} ${unit}${stops.length === 1 ? "" : "s"}`}</span>
+      <button type="button" class="btn" id="fNext">Next &rsaquo;</button>
+      <select id="fJump" aria-label="Go to a date with a match">
+        <option value="">${dates.length} date${dates.length === 1 ? "" : "s"} &mdash; go to&hellip;</option>
+        ${dates.slice(0, 400).map(d => `<option value="${d}">${esc(label(d))}</option>`).join("")}
+      </select>
+    </span>`;
+  el.querySelectorAll(".hit[data-g]").forEach(b => b.onclick = ()=>{
+    const g = series[+b.dataset.g], today = iso(new Date());
+    const d = g.dates.find(x => x > state.date) || g.dates.find(x => x >= today) || g.dates[0];
+    goToHit(hits.find(h => h.date === d && h.room === g.o.room && h.start === g.o.start));
+  });
+  document.getElementById("fPrev").onclick = ()=> stepHit(-1);
+  document.getElementById("fNext").onclick = ()=> stepHit(1);
+  document.getElementById("fJump").onchange = e => { if (e.target.value) goToHit(byDate.get(e.target.value)[0]); };
 }
 
 /* ---------- month views ---------- */
@@ -2245,7 +2360,7 @@ function syncView(){
       state.monthMode = b.dataset.m;
       modes.querySelectorAll("button").forEach(x =>
         x.setAttribute("aria-pressed", String(x.dataset.m === state.monthMode)));
-      syncView(); render();
+      syncView(); render(); if (state.q) revealSearch();
     });
   }
   paintFold();
@@ -2259,10 +2374,23 @@ document.getElementById("prev").onclick = ()=> step(-1);
 document.getElementById("next").onclick = ()=> step(1);
 document.getElementById("today").onclick = ()=>{ state.date = iso(new Date()); render(); };
 document.getElementById("datepick").onchange = e=>{ if(e.target.value){ state.date = e.target.value; render(); } };
-document.getElementById("vDay").onclick   = ()=>{ state.view="day";   syncView(); render(); };
-document.getElementById("vWeek").onclick  = ()=>{ state.view="week";  syncView(); render(); };
-document.getElementById("vMonth").onclick = ()=>{ state.view="month"; syncView(); render(); };
-document.getElementById("search").oninput = e=>{ state.q = e.target.value.trim(); render(); };
+// with a search on, a new view goes to where the matches are
+const showView = v => { state.view = v; syncView(); render(); if (state.q) revealSearch(); };
+document.getElementById("vDay").onclick   = ()=> showView("day");
+document.getElementById("vWeek").onclick  = ()=> showView("week");
+document.getElementById("vMonth").onclick = ()=> showView("month");
+let revealTimer = null;
+document.getElementById("search").oninput = e=>{
+  state.q = e.target.value.trim(); render();
+  clearTimeout(revealTimer);
+  if (state.q) revealTimer = setTimeout(revealSearch, 450);   // once typing pauses
+};
+// Enter goes to the next match, Shift+Enter the previous
+document.getElementById("search").onkeydown = e=>{
+  if (e.key !== "Enter" || !state.q) return;
+  e.preventDefault(); clearTimeout(revealTimer);
+  stepHit(e.shiftKey ? -1 : 1);
+};
 function paintRoomsBtn(){
   const n = ROOMS.filter(isHidden).length;
   document.getElementById("roomsBtn").textContent = n ? `Rooms \u00b7 ${n} hidden` : "Rooms";

@@ -201,10 +201,19 @@ glance; Agenda stays fully readable.
 
 **Searching.** Type a course number (`216-3`), a room, or an instructor into the
 search box and the grid narrows to just that — other classes and any room with
-no match drop out. A bar above the grid says where the match sits in the week,
-so `216-3` answers "Tue & Thu, 11:10am–12:35pm, 3422, Anthony Wardzinski"
-without paging through days. Partial numbers work: `216` shows all three
-sections. Clear the box to get everything back.
+no match drop out. A bar above the grid lists each match as a series — days,
+time, room, person and the dates it runs — so `216-3` answers "Tue & Thu,
+11:10am–12:35pm, 3422, Anthony Wardzinski, Sep 1–Dec 17" without paging through
+days. It reads the real schedule, so a lesson moved to another room shows under
+the room it's actually in, and reservations are found too. Partial numbers
+work: `216` shows all three sections. Clear the box to get everything back.
+
+The calendar goes to the matches. Once you stop typing, if nothing matching is
+on screen, Day jumps to the next date with a match, and Week and Month (by
+room) switch to the room the match is in. Switching views does the same.
+**Previous** / **Next** in the bar (or Enter / Shift+Enter in the search box)
+step through the dates, weeks or months that have a match, the drop-down lists
+every matching date to jump to, and clicking a series goes to its next date.
 
 **Filtering by type.** The colour keys along the bottom are buttons — click
 Event, or Tutoring, or several at once, to show only those. *Cancelled* filters
